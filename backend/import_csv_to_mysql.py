@@ -89,15 +89,14 @@ def import_csv(filepath):
         try:
             cursor.execute("""
                 INSERT INTO houses
-                (title, district, biz_circle, community, address,
+                (title, district, community, address,
                  total_price, unit_price, area, layout, rooms, halls, bathrooms,
                  floor_desc, floor_type, total_floors, orientation, decoration,
                  build_year, lng, lat, followers, source, source_id, fingerprint)
-                VALUES (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s)
             """, (
                 str(row.get('title', ''))[:300],
                 district,
-                str(row.get('biz_circle', ''))[:50],
                 str(row.get('community', ''))[:100],
                 str(row.get('address', ''))[:300],
                 safe_float(row.get('total_price')),
@@ -123,6 +122,8 @@ def import_csv(filepath):
             new_count += 1
         except Exception as e:
             skip_count += 1
+            if skip_count <= 3:
+                print(f'  [WARN] 插入失败: {e}')
 
     conn.commit()
     cursor.close()
@@ -155,16 +156,17 @@ def main():
     conn = pymysql.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
-    # 同一小区+区县+面积(整数)+户型相同 → 可能是同一套房
+    # 同一小区+区县+面积(整数)+户型相同 → 源不同但可能是同一套房
     cursor.execute("""
-        UPDATE houses h1
+        SELECT h1.id, h2.id
+        FROM houses h1
         JOIN houses h2 ON
             h1.community = h2.community
             AND h1.district = h2.district
             AND FLOOR(h1.area) = FLOOR(h2.area)
             AND h1.rooms = h2.rooms
             AND h1.source != h2.source
-        WHERE h1.id > h2.id
+            AND h1.id > h2.id
     """)
     marked = cursor.rowcount
     conn.commit()
@@ -178,7 +180,7 @@ def main():
         FROM houses
         GROUP BY source
     """)
-    print('\n📊 数据库统计：')
+    print('\n[STATS] 数据库统计：')
     for row in cursor.fetchall():
         print(f'  {row[0]}: {row[1]}条, 均价{row[2]}元/㎡, 平均总价{row[3]}万')
 
@@ -189,7 +191,7 @@ def main():
     cursor.close()
     conn.close()
 
-    print(f'\n✅ 导入完成！新增 {total_new} 条，跳过 {total_skip} 条重复')
+    print(f'\n[OK] 导入完成！新增 {total_new} 条，跳过 {total_skip} 条重复')
 
 
 if __name__ == '__main__':

@@ -56,14 +56,14 @@ def process_new_csv(filepath):
             # 🆕 新房源
             cursor.execute("""
                 INSERT INTO houses
-                (title, district, biz_circle, community, address,
+                (title, district, community, address,
                  total_price, unit_price, area, layout, rooms, halls, bathrooms,
                  floor_desc, floor_type, total_floors, orientation, decoration,
                  build_year, lng, lat, followers, source, source_id, fingerprint)
-                VALUES (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s)
             """, (
                 str(row.get('title',''))[:300], district,
-                str(row.get('biz_circle',''))[:50], str(row.get('community',''))[:100],
+                str(row.get('community',''))[:100],
                 str(row.get('address',''))[:300],
                 float(row.get('total_price',0) or 0), float(row.get('unit_price',0) or 0),
                 float(row.get('area',0) or 0), str(row.get('layout',''))[:20],
@@ -132,7 +132,7 @@ def summary():
         SELECT source, status, COUNT(*) FROM houses
         GROUP BY source, status ORDER BY source, status
     """)
-    print("\n📊 数据库状态：")
+    print("\n[STATS] 数据库状态：")
     for row in cursor.fetchall():
         print(f'  {row[0]} | {row[1]}: {row[2]}条')
 

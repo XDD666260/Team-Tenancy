@@ -14,7 +14,7 @@ def create_database():
     conn = pymysql.connect(**DB_CONFIG)
     cursor = conn.cursor()
     cursor.execute("CREATE DATABASE IF NOT EXISTS secondhouse_cq DEFAULT CHARSET utf8mb4")
-    print("✅ 数据库 secondhouse_cq 已就绪")
+    print("[OK] 数据库 secondhouse_cq 已就绪")
     cursor.close()
     conn.close()
 
@@ -29,7 +29,6 @@ def create_tables():
             id BIGINT PRIMARY KEY AUTO_INCREMENT,
             title VARCHAR(300) COMMENT '房源标题',
             district VARCHAR(50) COMMENT '区县',
-            biz_circle VARCHAR(50) COMMENT '商圈',
             community VARCHAR(100) COMMENT '小区名称',
             address VARCHAR(300) COMMENT '详细地址',
             total_price DECIMAL(12,2) COMMENT '总价（万）',
@@ -56,7 +55,6 @@ def create_tables():
             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
 
             INDEX idx_district (district),
-            INDEX idx_biz_circle (biz_circle),
             INDEX idx_total_price (total_price),
             INDEX idx_unit_price (unit_price),
             INDEX idx_source (source),
@@ -64,7 +62,7 @@ def create_tables():
             UNIQUE INDEX idx_fingerprint (fingerprint)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='二手房房源表'
     """)
-    print("✅ 表 houses 已就绪")
+    print("[OK] 表 houses 已就绪")
 
     # ========== 爬取日志表 ==========
     cursor.execute("""
@@ -84,7 +82,7 @@ def create_tables():
             INDEX idx_crawl_time (crawl_time)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='爬取日志'
     """)
-    print("✅ 表 crawl_log 已就绪")
+    print("[OK] 表 crawl_log 已就绪")
 
     # ========== 分析结果表 ==========
     cursor.execute("""
@@ -98,12 +96,12 @@ def create_tables():
             INDEX idx_create_time (create_time)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分析结果缓存'
     """)
-    print("✅ 表 analysis_results 已就绪")
+    print("[OK] 表 analysis_results 已就绪")
 
     conn.commit()
     cursor.close()
     conn.close()
-    print("\n🎉 数据库初始化完成！")
+    print("\n[DONE] 数据库初始化完成！")
 
 
 if __name__ == '__main__':
