@@ -86,7 +86,7 @@ def create_session():
 
 def refresh_session(old_session):
     """重建 Session"""
-    print('  🔄 重建 Session...')
+    print('  [Refresh] 重建 Session...')
     try:
         old_session.close()
     except:
@@ -117,16 +117,16 @@ def safe_get(session, url, headers_extra=None, timeout=20, max_retries=3):
                 base = (2 ** attempt) * 3
                 jitter = random.uniform(0, base)
                 wait = base + jitter
-                print(f'  ⚠ [{err_name}] {e}')
-                print(f'  ⏳ {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
+                print(f'  [WARN] [{err_name}] {e}')
+                print(f'  [Retry] {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
                 time.sleep(wait)
                 session = refresh_session(session)
             else:
-                print(f'  ❌ 重试{max_retries}次后仍失败: {err_name}')
+                print(f'  [ERR] 重试{max_retries}次后仍失败: {err_name}')
                 raise
 
         except requests.RequestException as e:
-            print(f'  ❌ 请求异常 [{type(e).__name__}]: {e}')
+            print(f'  [ERR] 请求异常 [{type(e).__name__}]: {e}')
             raise
 
     return None, session
@@ -196,8 +196,13 @@ def get_detail_page(house_id, district_name):
         info_text = info_el.get_text(strip=True) if info_el else ''
         info_data = parse_house_info(info_text)
 
+        # 区县：从 .areaName .info a 中提取（第2个是区县级）
         area_els = soup.select('.areaName .info a')
         district = area_els[1].get_text(strip=True) if len(area_els) >= 2 else district_name
+
+        # 详细地址：拼接 .areaName 下所有 .info 的文本
+        addr_spans = soup.select('.areaName .info')
+        address = ''.join(s.get_text(strip=True) for s in addr_spans)
 
         lng, lat = 0, 0
         scripts = soup.find_all('script')
@@ -216,9 +221,6 @@ def get_detail_page(house_id, district_name):
                 if m: build_year = int(m.group(1))
                 break
 
-        follow_el = soup.select_one('#favCount')
-        followers = int(follow_el.get_text(strip=True)) if follow_el and follow_el.get_text(strip=True).isdigit() else 0
-
         return {
             'id': house_id,
             'title': soup.select_one('h1').get_text(strip=True) if soup.select_one('h1') else '',
@@ -226,12 +228,11 @@ def get_detail_page(house_id, district_name):
             'unit_price': unit_price,
             'community': community,
             'district': district,
-            'address': '',
+            'address': address,
             'lng': lng,
             'lat': lat,
             **info_data,
             'build_year': build_year,
-            'followers': followers,
             'source': 'lianjia',
         }
     except Exception:
@@ -268,7 +269,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
     done_ids = set(checkpoint.get('house_ids_done', []))
 
     if completed_pages:
-        print(f'  📋 断点: 已完成 {len(completed_pages)} 页，{len(done_ids)} 个详情页')
+        print(f'  [CP] 断点: 已完成 {len(completed_pages)} 页，{len(done_ids)} 个详情页')
 
     for page in range(1, max_pages + 1):
         if page in completed_pages:
@@ -286,7 +287,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
             else:
                 base_delay = random.uniform(8, 15)
             delay = base_delay * random.uniform(0.7, 1.3)
-            print(f'  ⏱ 等待 {delay:.1f}s ...')
+            print(f'  [T] 等待 {delay:.1f}s ...')
             time.sleep(delay)
 
             # 预热：先访问第1页模拟人类行为
@@ -301,7 +302,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
         try:
             resp, session = safe_get(session, url, headers_extra={'Referer': referer}, timeout=20)
         except Exception as e:
-            print(f'  ❌ 列表页请求失败: {type(e).__name__}')
+            print(f'  [ERR] 列表页请求失败: {type(e).__name__}')
             continue
 
         print(f'  状态码: {resp.status_code}  长度: {len(resp.text)}')
@@ -361,9 +362,9 @@ def crawl_district(code, name, max_pages=50, resume=True):
             if data:
                 all_data.append(data)
                 done_ids.add(hid)
-                print(f'✅ {data["title"][:20]} | {data["total_price"]}万')
+                print(f'[OK] {data["title"][:20]} | {data["total_price"]}万')
             else:
-                print('❌')
+                print('[ERR]')
 
             time.sleep(random.uniform(1.5, 3))
 
@@ -377,7 +378,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
         if len(house_ids) == 0:
             break
 
-    print(f'  ✅ [{name}] 完成：{len(pages_done)} 页，共 {len(all_data)} 条')
+    print(f'  [OK] [{name}] 完成：{len(pages_done)} 页，共 {len(all_data)} 条')
     return all_data
 
 
@@ -390,7 +391,7 @@ if __name__ == '__main__':
         print(f'开始爬取链家 {name}...')
         print(f'{"="*50}')
 
-        data = crawl_district(code, name, max_pages=50, resume=True)
+        data = crawl_district(code, name, max_pages=100, resume=True)
         all_houses.extend(data)
 
         output_path = os.path.join(OUTPUT_DIR, f'lianjia_{name}.csv')
@@ -398,7 +399,7 @@ if __name__ == '__main__':
             keys = ['id','title','total_price','unit_price','community',
                     'district','address','lng','lat','layout','rooms','halls','bathrooms',
                     'area','orientation','decoration','floor_desc','floor_type',
-                    'total_floors','build_year','followers','source']
+                    'total_floors','build_year','source']
             with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
                 writer = csv.DictWriter(f, fieldnames=keys, extrasaction='ignore')
                 writer.writeheader()

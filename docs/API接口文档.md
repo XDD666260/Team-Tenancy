@@ -1,7 +1,7 @@
 # API 接口文档
 
 > 后端：胡霖（FastAPI） | App：解金明（Kotlin + Retrofit）
-> 2026年6月9日
+> 2026年6月12日
 
 ---
 
@@ -78,15 +78,13 @@
                 "district": "渝北区",
                 "count": 8200,
                 "avg_unit_price": 14500.00,
-                "avg_total_price": 175.20,
-                "biz_circle_count": 12
+                "avg_total_price": 175.20
             },
             {
                 "district": "江北区",
                 "count": 6200,
                 "avg_unit_price": 15800.00,
-                "avg_total_price": 192.50,
-                "biz_circle_count": 8
+                "avg_total_price": 192.50
             }
         ]
     }
@@ -96,20 +94,18 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `by_source` | object | 按数据来源统计，`lianjia` + `anjuke` |
-| `by_district[].biz_circle_count` | int | 该区县覆盖的商圈数量 |
 
 ---
 
 ### 2. 房源列表 — `GET /api/houses`
 
-**用途**：App 筛选查询页面，支持多条件筛选 + 分页。
+**用途**：App 筛选查询页面，支持多条件筛选 + 分页 + 地图展示。
 
 **请求参数**（全部可选）：
 
 | 参数 | 类型 | 示例 | 说明 |
 |------|------|------|------|
 | `district` | string | `渝北区` | 区县筛选 |
-| `biz_circle` | string | `观音桥` | 商圈筛选 |
 | `min_price` | float | `80` | 最低总价（万） |
 | `max_price` | float | `200` | 最高总价（万） |
 | `min_area` | float | `60` | 最小面积（㎡） |
@@ -124,7 +120,7 @@
 
 **请求示例**：
 ```
-GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=200&rooms=3&page=1&page_size=20
+GET /api/houses?district=渝北区&min_price=80&max_price=200&rooms=3&page=1&page_size=20
 ```
 
 **响应**：
@@ -137,7 +133,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
             "id": 12345,
             "title": "龙湖春森彼岸 精装三房 南北通透",
             "district": "渝北区",
-            "biz_circle": "观音桥",
             "community": "龙湖春森彼岸",
             "address": "北滨路258号",
             "total_price": 150.00,
@@ -155,16 +150,14 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
             "build_year": 2018,
             "lng": 106.540000,
             "lat": 29.570000,
-            "followers": 128,
-            "source": "lianjia",
-            "crawl_time": "2026-06-15T14:30:00"
+            "source": "lianjia"
         }
     ],
     "total": 356
 }
 ```
 
-**房源对象字段对照**（与数据源分析笔记23个字段一一对应）：
+**房源对象字段对照**（与爬虫CSV字段一一对应）：
 
 | API字段 | 变量名 | 说明 |
 |---------|--------|------|
@@ -183,14 +176,11 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
 | `decoration` | decoration | 装修 |
 | `build_year` | build_year | 建成年代 |
 | `community` | community | 小区名称 |
-| `biz_circle` | biz_circle | 商圈 |
 | `district` | district | 区县 |
 | `address` | address | 详细地址 |
 | `lng` | lng | 经度 |
 | `lat` | lat | 纬度 |
-| `followers` | followers | 关注人数 |
 | `source` | source | 数据来源（lianjia / anjuke） |
-| `crawl_time` | crawl_time | 爬取时间 |
 
 ---
 
@@ -216,7 +206,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
         "avg_area": 108.50,
         "max_price": 2800.00,
         "min_price": 28.00,
-        "biz_circle_count": 12,
         "decoration_distribution": [
             {"type": "精装", "count": 3500},
             {"type": "简装", "count": 2800},
@@ -247,16 +236,10 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
         "top_communities": [
             {"name": "龙湖春森彼岸", "count": 180, "avg_price": 15800},
             {"name": "招商江湾城", "count": 150, "avg_price": 14200}
-        ],
-        "top_biz_circles": [
-            {"name": "观音桥", "count": 1200, "avg_price": 15200},
-            {"name": "照母山", "count": 980, "avg_price": 16800}
         ]
     }
 }
 ```
-
-> 相比旧版新增：`biz_circle_count`、`top_biz_circles`
 
 ---
 
@@ -377,7 +360,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
                 "avg_area": 75.5,
                 "avg_rooms": 2.1,
                 "typical_districts": ["巴南区", "大渡口区", "北碚区"],
-                "typical_biz_circles": ["鱼洞", "九宫庙", "北碚老城"],
                 "description": "小面积、低总价、远郊区域，适合首次置业"
             },
             {
@@ -388,7 +370,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
                 "avg_area": 105.0,
                 "avg_rooms": 2.9,
                 "typical_districts": ["渝北区", "沙坪坝区", "南岸区"],
-                "typical_biz_circles": ["照母山", "大学城", "南坪"],
                 "description": "中等面积、中等价格、近郊成熟区域"
             },
             {
@@ -399,7 +380,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
                 "avg_area": 145.0,
                 "avg_rooms": 3.8,
                 "typical_districts": ["江北区", "渝中区"],
-                "typical_biz_circles": ["江北嘴", "解放碑"],
                 "description": "大面积、高总价、核心地段"
             },
             {
@@ -410,15 +390,12 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
                 "avg_area": 55.0,
                 "avg_rooms": 1.5,
                 "typical_districts": ["江北区", "渝中区"],
-                "typical_biz_circles": ["观音桥", "解放碑"],
                 "description": "小户型、高单价、核心区，适合投资"
             }
         ]
     }
 }
 ```
-
-> 每个聚类新增 `typical_biz_circles` 字段
 
 ---
 
@@ -447,8 +424,6 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
     }
 }
 ```
-
-> 每条规则新增 `support` 字段
 
 ---
 
@@ -492,10 +467,10 @@ GET /api/houses?district=渝北区&biz_circle=观音桥&min_price=80&max_price=2
 
 | 日期 | 变更内容 | 原因 |
 |------|---------|------|
+| 6/12 | 移除 `biz_circle`、`followers`、`crawl_time` 字段 | 安居客无法提供商圈和关注数，与爬虫实际产出对齐 |
+| 6/12 | 移除 district 详情的 `biz_circle_count`、`top_biz_circles` | 同上 |
+| 6/12 | 移除聚类结果的 `typical_biz_circles` | 同上 |
+| 6/12 | 链家新增 `address` 字段（详情页 `.areaName` 提取） | 之前为空，现已对齐安居客 |
 | 6/9 | 房源对象新增 `biz_circle`、`source`、`address`、`lng`、`lat`、`followers`、`crawl_time` | 对齐数据源分析笔记的23个字段 |
 | 6/9 | overview 新增 `by_source` 统计 | 区分链家/安居客数据占比 |
-| 6/9 | district 详情新增 `top_biz_circles` | 商圈维度的可视化展示 |
-| 6/9 | 聚类结果新增 `typical_biz_circles` | 每个聚类类别的典型商圈 |
-| 6/9 | 关联规则新增 `support` | 支撑度指标，分析更完整 |
 | 6/9 | 新增 `POST /api/update` 接口 | 增量更新功能，答辩演示用 |
-| 6/9 | 筛选参数新增 `biz_circle`、`floor_type`、`source` | 数据源笔记中确认的筛选维度 |

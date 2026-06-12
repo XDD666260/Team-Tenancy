@@ -49,44 +49,43 @@ BASE_HEADERS = {
 # ===================== 区县列表（安居客实际代码） =====================
 DISTRICTS = [
     ('yubei', '两江新区'),
-    # ('yuzhong', '渝中区'),
-    # ('nanana', '南岸区'),
-    # ('shapingba', '沙坪坝区'),
-    # ('jiulongpo', '九龙坡区'),
-    # ('banan', '巴南区'),
-    # ('beibei', '北碚区'),
-    # ('dadukou', '大渡口区'),
-    # ('bishanqu', '璧山区'),
-    # ('yongchuanqu', '永川区'),
-    # ('wanzhouqu', '万州区'),
-    # ('jiangjinqu', '江津区'),
-    # ('hechuanqu', '合川区'),
-    # ('tongliangqu', '铜梁区'), 
-    # ('fulingqu', '涪陵区'),
-    # ('changshouqu', '长寿区'),
-    # ('rongchangqu', '荣昌区'),
-    # ('qijiangqu', '綦江区'),
-    # ('nanchuanqu', '南川区'),
-    # ('dazhuqu', '大足区'),
-    # ('tongnanqu', '潼南区'),
-    # ('kaizhoukuaixian', '开州区'),
-    # ('dainjiangxian', '垫江县'),
-    # ('liangpingxian', '梁平区'),
-    # ('wansheng', '万盛区'),
-    # ('fengjiexian', '奉节县'),
-    # ('yunyangxian', '云阳县'),
-    # ('zhongxian', '忠县'),
-    # ('wuxixian', '巫溪县'),
-    # ('qianjiangqu', '黔江区'),
-    # ('wulongxian', '武隆区'),
-    # ('cqwushanxian', '巫山县'),
-    # ('chengkouxian', '城口县'),
-    # ('pengshuimiaozutujiazuzhixian', '彭水县'),
-    # ('xiushantujiazumiaozuzhixian', '秀山县'),
-    # ('shizhutujiazuzhixian', '石柱县'),
-    # ('youyangtujiazumiaozuzhixian', '酉阳县'),
-    # ('fengduxian','丰都'),
-    # ('qianjiangqu','黔江'),
+    ('yuzhong', '渝中区'),
+    ('nanana', '南岸区'),
+    ('shapingba', '沙坪坝区'),
+    ('jiulongpo', '九龙坡区'),
+    ('banan', '巴南区'),
+    ('beibei', '北碚区'),
+    ('dadukou', '大渡口区'),
+    ('bishanqu', '璧山区'),
+    ('yongchuanqu', '永川区'),
+    ('wanzhouqu', '万州区'),
+    ('jiangjinqu', '江津区'),
+    ('hechuanqu', '合川区'),
+    ('tongliangqu', '铜梁区'), 
+    ('fulingqu', '涪陵区'),
+    ('changshouqu', '长寿区'),
+    ('rongchangqu', '荣昌区'),
+    ('qijiangqu', '綦江区'),
+    ('nanchuanqu', '南川区'),
+    ('dazhuqu', '大足区'),
+    ('tongnanqu', '潼南区'),
+    ('kaizhoukuaixian', '开州区'),
+    ('dainjiangxian', '垫江县'),
+    ('liangpingxian', '梁平区'),
+    ('wansheng', '万盛区'),
+    ('fengjiexian', '奉节县'),
+    ('yunyangxian', '云阳县'),
+    ('zhongxian', '忠县'),
+    ('wuxixian', '巫溪县'),
+    ('qianjiangqu', '黔江区'),
+    ('wulongxian', '武隆区'),
+    ('cqwushanxian', '巫山县'),
+    ('chengkouxian', '城口县'),
+    ('pengshuimiaozutujiazuzhixian', '彭水县'),
+    ('xiushantujiazumiaozuzhixian', '秀山县'),
+    ('shizhutujiazuzhixian', '石柱县'),
+    ('youyangtujiazumiaozuzhixian', '酉阳县'),
+    ('fengduxian','丰都县'),
 ]
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
@@ -122,7 +121,7 @@ def create_session():
 
 def refresh_session(old_session):
     """重建 Session，更换 UA 和连接池，避免被指纹追踪"""
-    print('  🔄 重建 Session（更换连接池 + UA）...')
+    print('  [Refresh] 重建 Session（更换连接池 + UA）...')
     try:
         old_session.close()
     except:
@@ -157,18 +156,18 @@ def safe_get(session, url, referer='', timeout=20, max_retries=3):
                 base = (2 ** attempt) * 3
                 jitter = random.uniform(0, base)
                 wait = base + jitter
-                print(f'  ⚠ [{err_name}] {e}')
-                print(f'  ⏳ {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
+                print(f'  [WARN] [{err_name}] {e}')
+                print(f'  [Retry] {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
                 time.sleep(wait)
                 # 重建 session 避免被同一连接追踪
                 session = refresh_session(session)
             else:
-                print(f'  ❌ 重试{max_retries}次后仍失败: {err_name}')
+                print(f'  [ERR] 重试{max_retries}次后仍失败: {err_name}')
                 raise
 
         except requests.RequestException as e:
             # 其他 requests 异常（非连接级）
-            print(f'  ❌ 请求异常 [{type(e).__name__}]: {e}')
+            print(f'  [ERR] 请求异常 [{type(e).__name__}]: {e}')
             raise
 
     return None, session  # 不应到达这里
@@ -339,7 +338,7 @@ def save_checkpoint(code, pages_done, pages_failed):
         json.dump({
             'pages_done': pages_done,
             'pages_failed': pages_failed,
-            'total_crawled': sum(pages_done) if isinstance(pages_done[0], int) else 0
+            'total_crawled': sum(pages_done) if pages_done and isinstance(pages_done[0], int) else 0
         }, f, ensure_ascii=False)
 
 
@@ -350,15 +349,15 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
     """
     all_data = []
     session = create_session()
-    pages_done = []
-    pages_failed = []
 
-    # 加载断点
+    # 加载断点（pages_done 从旧 checkpoint 继承，避免覆盖丢失）
     checkpoint = load_checkpoint(code) if resume else {}
-    completed_pages = set(checkpoint.get('pages_done', []))
+    pages_done = list(checkpoint.get('pages_done', []))
+    pages_failed = list(checkpoint.get('pages_failed', []))
+    completed_pages = set(pages_done)
 
     if completed_pages:
-        print(f'  📋 检测到断点: 已完成 {len(completed_pages)} 页，从第 {max(completed_pages)+1} 页继续')
+        print(f'  [CP] 检测到断点: 已完成 {len(completed_pages)} 页，从第 {max(completed_pages)+1} 页继续')
 
     for page in range(1, max_pages + 1):
         # 跳过已完成页
@@ -387,14 +386,14 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
                 base_delay = random.uniform(12, 25)
             # 加随机抖动 ±30%
             delay = base_delay * random.uniform(0.7, 1.3)
-            print(f'  ⏱ 等待 {delay:.1f}s ...')
+            print(f'  [T] 等待 {delay:.1f}s ...')
             time.sleep(delay)
 
         # 请求页面（带自动重试）
         try:
             resp, session = safe_get(session, url, referer=referer, timeout=20)
         except Exception as e:
-            print(f'  ❌ 页面请求最终失败: {type(e).__name__}: {e}')
+            print(f'  [ERR] 页面请求最终失败: {type(e).__name__}: {e}')
             pages_failed.append(page)
             save_checkpoint(code, pages_done, pages_failed)
             # 失败后重建 session 再试下一页
@@ -480,24 +479,34 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
                 page_count += 1
 
         print(f'  [{name}] 本页有效 {page_count} 条，累计 {len(all_data)} 条')
-        pages_done.append(page)
 
-        # 每页保存断点
-        save_checkpoint(code, pages_done, pages_failed)
+        # 只有本页确实解析到房源才标记为已完成并保存断点
+        if page_count > 0:
+            pages_done.append(page)
+            save_checkpoint(code, pages_done, pages_failed)
+        # 无房源且页面长度异常（<10KB 通常是拦截页），不保存断点防止污染
+        elif len(resp.text) < 10000:
+            print(f'  [WARN] 页面过短({len(resp.text)}B)，疑似拦截页，不保存断点')
 
         # 每 10 页重建 session 避免指纹关联
         if page % 10 == 0 and page > 0:
             session = refresh_session(session)
 
-        # 空页面就停止
-        if len(items) == 0 and page > 1:
+        # 空页面就停止（第一页无结果也停止，说明该区县无数据或被拦截）
+        if len(items) == 0 and page_count == 0:
             print(f'  页面无房源，停止翻页')
+            # 第一页就空的，删除可能存在的旧断点（旧数据已失效）
+            if page == 1:
+                cp_path = os.path.join(CHECKPOINT_DIR, f'anjuke_{code}.json')
+                if os.path.exists(cp_path):
+                    os.remove(cp_path)
+                    print(f'  已清除旧断点: {cp_path}')
             break
 
     # 报告
     if pages_failed:
-        print(f'\n  ⚠ [{name}] 失败页: {pages_failed}（已跳过）')
-    print(f'  ✅ [{name}] 完成：成功 {len(pages_done)} 页，共 {len(all_data)} 条')
+        print(f'\n  [WARN] [{name}] 失败页: {pages_failed}（已跳过）')
+    print(f'  [OK] [{name}] 完成：成功 {len(pages_done)} 页，共 {len(all_data)} 条')
 
     return all_data
 
@@ -511,7 +520,7 @@ if __name__ == '__main__':
         print(f'开始爬取安居客 {name}...')
         print(f'{"="*50}')
 
-        data = crawl_district(code, name, max_pages=3, resume=True)
+        data = crawl_district(code, name, max_pages=150, resume=True)
         all_houses.extend(data)
 
         # 每区保存
