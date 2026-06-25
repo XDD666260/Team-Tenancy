@@ -72,8 +72,11 @@ def fix_price(row):
     """
     修复安居客价格损坏问题。
     损坏特征：total_price > 1000（应为 < 500 万）
+    安居客 raw total_price 有不同单位：
+      - 8位数 (>=10M)：price_in_wan * 100000 → 除以100000
+      - 6-7位数 (100K-9.9M)：price_in_wan * 10000 → 除以10000
     策略1：从标题提取"XXX万"
-    策略2：total_price / 100000
+    策略2：按数值位数自适应选择除数
     修复后重算 unit_price
     """
     tp = safe_float(row.get('total_price', 0))
@@ -95,20 +98,34 @@ def fix_price(row):
     # --- 价格损坏，需要修复 ---
     title = str(row.get('title', ''))
 
-    # 策略1：从标题提取价格
-    pm = re.search(r'(\d+\.?\d*)\s*万', title)
+    # 策略1：从标题提取价格（多种模式）
+    # 模式: "XXX万", "XXX 万", "XXXW", "XXXw"
+    pm = re.search(r'(\d+\.?\d*)\s*[万Ww]', title)
     if pm:
         corrected_tp = float(pm.group(1))
-        # 验证：损坏价格的前几位应匹配标题价格
-        tp_str = str(int(tp))
-        if tp_str.startswith(str(int(corrected_tp))[:3]):
+        # 验证合理性：标题提取价应在合理范围（3-3000万）
+        if 3 <= corrected_tp <= 3000:
             row['total_price'] = str(round(corrected_tp, 2))
             if area > 0:
                 row['unit_price'] = str(round(corrected_tp * 10000 / area, 2))
             return row
 
-    # 策略2：除以 100000
-    corrected_tp = round(tp / 100000, 4)
+    # 策略2：按数值位数自适应除数
+    # >= 10,000,000 (8位数) → ÷100000
+    # 1,000 ~ 9,999,999 (4-7位数) → ÷10000
+    if tp >= 10000000:
+        corrected_tp = round(tp / 100000, 4)
+    else:
+        corrected_tp = round(tp / 10000, 4)
+
+    # 最终验证：修正后的价格是否在合理范围
+    if corrected_tp <= 0 or corrected_tp > 5000:
+        # 极端情况回退：尝试另一种除数
+        if tp >= 10000000:
+            corrected_tp = round(tp / 10000, 4)
+        else:
+            corrected_tp = round(tp / 100000, 4)
+
     row['total_price'] = str(corrected_tp)
     if area > 0:
         row['unit_price'] = str(round(corrected_tp * 10000 / area, 2))
@@ -211,36 +228,9 @@ def clean_all():
         'lng_ok': 0,
     }
 
-    # ---- 优先处理 all_listings_merged（最多样化，作为主数据源） ----
-    print(f'\n--- 处理合并文件 (优先，最多样化) ---')
-    for fpath in merged:
-        basename = os.path.basename(fpath)
-        rows = read_csv_safe(fpath)
-        added = 0
-
-        for row in rows:
-            stats['total_read'] += 1
-            source = 'lianjia' if 'lianjia' in basename else 'anjuke'
-            district = str(row.get('district', '')).strip()
-            nr = normalize_row(row, source, district)
-            nr = fix_price(nr)
-
-            key = make_cross_file_key(nr, source)
-            if key and key in seen_keys:
-                continue
-            if key:
-                seen_keys.add(key)
-
-            if safe_float(nr.get('lng', 0)) > 0:
-                stats['lng_ok'] += 1
-
-            all_rows.append(nr)
-            added += 1
-        print(f'  {basename}: {added}条')
-
-    merged = []  # 已处理，清空避免重复
-
-    # ---- 处理安居客主数据 (同文件内保留全部，只做标题精确去重) ----
+    # ---- 处理安居客主数据 (主数据源，优先处理) ----
+    # 修改顺序：anjuke_m 先处理（它是主要数据源，每个区县一个文件）
+    # 然后处理 merged/all_listings/anjuke_all 作为补充（跨文件去重）
     print(f'\n--- 处理安居客主数据 (anjuke_m_*.csv) ---')
     for fpath in anjuke_m:
         district = extract_district(fpath)
@@ -248,6 +238,7 @@ def clean_all():
         file_count = 0
         file_fixed = 0
         file_title_dup = 0
+        file_cross_dup = 0
         seen_titles_in_file = set()
 
         for row in rows:
@@ -261,7 +252,7 @@ def clean_all():
             if abs(old_tp - new_tp) > 1:
                 file_fixed += 1
 
-            # 同文件内：标题完全相同视为重复（爬虫可能抓到同一页的相同房源）
+            # 同文件内：标题完全相同视为重复
             title_full = str(nr.get('title', '')).strip()
             if title_full and title_full in seen_titles_in_file:
                 file_title_dup += 1
@@ -282,13 +273,52 @@ def clean_all():
         else:
             print(f'  {district}: {file_count}条, 修复价格:{file_fixed}')
 
-    # 将所有已处理行的跨文件key加入集合
+    # 将所有 anjuke_m 的跨文件key加入集合（用于后续去重）
     for r in all_rows:
         key = make_cross_file_key(r, r['source'])
         if key:
             seen_keys.add(key)
 
     print(f'\n  主数据小计: {len(all_rows)} 条')
+
+    # ---- 处理合并文件 (补充数据，跨文件去重) ----
+    print(f'\n--- 处理合并文件 (补充数据，跨文件去重) ---')
+    merged_added = 0
+    merged_skipped = 0
+    for fpath in merged:
+        basename = os.path.basename(fpath)
+        rows = read_csv_safe(fpath)
+        file_added = 0
+        file_skipped = 0
+
+        for row in rows:
+            stats['total_read'] += 1
+            source = 'lianjia' if 'lianjia' in basename else 'anjuke'
+            district = str(row.get('district', '')).strip()
+            nr = normalize_row(row, source, district)
+            nr = fix_price(nr)
+
+            # 跨文件去重（与已有的 anjuke_m 数据比较）
+            key = make_cross_file_key(nr, source)
+            if key and key in seen_keys:
+                stats['cross_file_dup'] += 1
+                file_skipped += 1
+                continue
+            if key:
+                seen_keys.add(key)
+
+            if safe_float(nr.get('lng', 0)) > 0:
+                stats['lng_ok'] += 1
+
+            all_rows.append(nr)
+            file_added += 1
+
+        merged_added += file_added
+        merged_skipped += file_skipped
+        print(f'  {basename}: 新增{file_added}, 跳过{file_skipped}(重复)')
+
+    print(f'  合并文件新增: {merged_added}, 跳过: {merged_skipped}')
+    merged = []  # 已处理，清空避免重复
 
     # ---- 处理安居客其它 (跨文件去重) ----
     print(f'\n--- 处理安居客其它 (anjuke_*.csv) ---')
@@ -352,10 +382,28 @@ def clean_all():
             added += 1
         print(f'  {district}: {added}条, 跳过{skipped}(重复)')
 
-    # ---- 最终生成 DB 指纹 ----
+    # ---- 最终生成 DB 指纹并做最终去重 ----
+    print(f'\n--- 最终去重（指纹级别）---')
+    seen_fingerprints = set()
+    final_rows = []
+    fp_dup_count = 0
     for r in all_rows:
         r['fingerprint'] = make_fingerprint(r, r['source'])
+        fp = r['fingerprint']
+        if fp and fp in seen_fingerprints:
+            fp_dup_count += 1
+            continue
+        if fp:
+            seen_fingerprints.add(fp)
+        final_rows.append(r)
 
+    if fp_dup_count > 0:
+        print(f'  指纹去重: {fp_dup_count} 条重复被移除')
+        stats['fingerprint_dup'] = fp_dup_count
+    else:
+        stats['fingerprint_dup'] = 0
+
+    all_rows = final_rows
     stats['final_count'] = len(all_rows)
 
     # ---- 输出清洗后的CSV ----

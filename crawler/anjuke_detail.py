@@ -5,105 +5,34 @@
 # 适用: 对已有列表数据补全字段, 或小规模精确爬取
 # ============================================================
 
-import requests, re, csv, os, time, random, hashlib, json
+import os
+import re
+import sys
+import time
+import random
+
+# 确保项目根目录在 sys.path 中
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 
-# ==================== 代理 ====================
-PROXY_URL = 'http://用户名:密码@隧道地址:端口'
-PROXIES = {'http': PROXY_URL, 'https': PROXY_URL}
+from crawler.utils import (
+    ANJUKE_DISTRICTS,
+    OUTPUT_DIR, CHECKPOINT_DIR, ANJUKE_CSV_KEYS,
+    make_anjuke_fingerprint,
+    load_checkpoint, save_checkpoint,
+    save_csv, deduplicate_and_save,
+    mobile_get, desktop_get,
+)
 
-UA_MOBILE = [
-    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-]
-UA_DESKTOP = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-]
-
-DISTRICTS = [
-    ('yubei','两江新区'),('yuzhong','渝中区'),('nanana','南岸区'),
-    ('shapingba','沙坪坝区'),('jiulongpo','九龙坡区'),('banan','巴南区'),
-    ('beibei','北碚区'),('dadukou','大渡口区'),('bishanqu','璧山区'),
-    ('yongchuanqu','永川区'),('wanzhouqu','万州区'),('jiangjinqu','江津区'),
-    ('hechuanqu','合川区'),('tongliangqu','铜梁区'),('fulingqu','涪陵区'),
-    ('changshouqu','长寿区'),('rongchangqu','荣昌区'),('qijiangqu','綦江区'),
-    ('nanchuanqu','南川区'),('dazhuqu','大足区'),('tongnanqu','潼南区'),
-    ('kaizhoukuaixian','开州区'),('dainjiangxian','垫江县'),
-    ('liangpingxian','梁平区'),('wansheng','万盛区'),('fengjiexian','奉节县'),
-    ('yunyangxian','云阳县'),('zhongxian','忠县'),('wuxixian','巫溪县'),
-    ('qianjiangqu','黔江区'),('wulongxian','武隆区'),('cqwushanxian','巫山县'),
-    ('chengkouxian','城口县'),('pengshuimiaozutujiazuzhixian','彭水县'),
-    ('xiushantujiazumiaozuzhixian','秀山县'),('shizhutujiazuzhixian','石柱县'),
-    ('youyangtujiazumiaozuzhixian','酉阳县'),('fengduxian','丰都县'),
-]
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(BASE_DIR, '..', 'data', 'raw')
-CHECKPOINT_DIR = os.path.join(BASE_DIR, '..', 'data', 'checkpoints')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-
-CSV_KEYS = [
-    'id','title','total_price','unit_price','community','district','address',
-    'lng','lat','layout','rooms','halls','bathrooms','area','orientation',
-    'decoration','floor_desc','floor_type','total_floors','build_year',
-    'tags','source','fingerprint'
-]
 DETAIL_WORKERS = 4  # 每个区县的详情页并行线程数
 
-# ==================== HTTP ====================
-def mobile_get(url, timeout=60):
-    """移动站请求"""
-    headers = {
-        'User-Agent': random.choice(UA_MOBILE),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Connection': 'close',
-    }
-    for _ in range(4):
-        try:
-            resp = requests.get(url, headers=headers, proxies=PROXIES, timeout=timeout)
-            resp.text  # 强制读取
-            return resp
-        except Exception:
-            time.sleep(random.uniform(3, 8))
-    return None
 
-def desktop_get(url, timeout=50):
-    """桌面站请求"""
-    headers = {
-        'User-Agent': random.choice(UA_DESKTOP),
-        'Accept': 'text/html',
-        'Connection': 'close',
-    }
-    for _ in range(3):
-        try:
-            resp = requests.get(url, headers=headers, proxies=PROXIES, timeout=timeout)
-            resp.text
-            return resp
-        except Exception:
-            time.sleep(2)
-    return None
+# ============================================================
+# 列表页解析（移动站 li.item-wrap）
+# ============================================================
 
-# ==================== 指纹 ====================
-def fingerprint(community, district, area, rooms, total_price):
-    key = f"{community}|{district}|{area}|{rooms}|{total_price}"
-    return hashlib.md5(key.encode()).hexdigest()
-
-# ==================== 断点 ====================
-def load_checkpoint(code):
-    path = os.path.join(CHECKPOINT_DIR, f'anjuke_detail_{code}.json')
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {'pages_done': []}
-
-def save_checkpoint(code, pages_done):
-    path = os.path.join(CHECKPOINT_DIR, f'anjuke_detail_{code}.json')
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'pages_done': pages_done}, f)
-
-# ==================== 列表页解析(同快速版) ====================
 def parse_list_page(html):
     """从移动站列表页提取房源基本信息"""
     soup = BeautifulSoup(html, 'lxml')
@@ -130,32 +59,42 @@ def parse_list_page(html):
             biz_circle = desc_texts[3] if len(desc_texts) > 3 else ''
 
             area = 0.0
-            try: area = float(re.sub(r'[^\d.]', '', area_str))
-            except: pass
+            try:
+                area = float(re.sub(r'[^\d.]', '', area_str))
+            except ValueError:
+                pass
 
             price_el = item.select_one('.price') or item.select_one('[class*=price]')
             price_text = price_el.get_text(strip=True) if price_el else '0'
             total_price = 0.0
-            try: total_price = float(re.sub(r'[^\d.]', '', price_text))
-            except: pass
+            try:
+                total_price = float(re.sub(r'[^\d.]', '', price_text))
+            except ValueError:
+                pass
 
-            if total_price <= 0: continue
+            if total_price <= 0:
+                continue
 
             community = ''
             for img in item.find_all('img'):
                 alt = img.get('alt', '')
                 cm = re.match(r'(.+?)\d+室', alt)
-                if cm: community = cm.group(1); break
+                if cm:
+                    community = cm.group(1)
+                    break
             if not community:
                 tm = re.match(r'\S+\s+(.+?)\s+[一二三四五六七八九\d]+房', title)
-                if tm: community = tm.group(1)
+                if tm:
+                    community = tm.group(1)
 
             rooms = halls = 0
             if layout:
                 rm = re.search(r'(\d+)室', layout)
-                if rm: rooms = int(rm.group(1))
+                if rm:
+                    rooms = int(rm.group(1))
                 hm = re.search(r'(\d+)厅', layout)
-                if hm: halls = int(hm.group(1))
+                if hm:
+                    halls = int(hm.group(1))
 
             tags = '|'.join(t.get_text(strip=True) for t in item.select('.tag-wrap span, .tag'))
 
@@ -167,20 +106,25 @@ def parse_list_page(html):
                 'bathrooms': 0, 'area': area, 'orientation': orientation,
                 'decoration': '', 'floor_desc': '', 'floor_type': '',
                 'total_floors': 0, 'build_year': 0,
-                'tags': tags, 'source': 'anjuke',
+                'tags': tags, 'followers': 0, 'source': 'anjuke',
+                'source_id': hid,
             })
         except Exception:
             continue
     return results
 
-# ==================== 详情页获取 ====================
+
+# ============================================================
+# 详情页获取
+# ============================================================
+
 def fetch_detail(house):
-    """
-    为一个房源补全所有详情页字段。
+    """为一个房源补全所有详情页字段。
+
     1) 桌面站详情页: 经纬度(<meta name="location" coord="...">)
     2) 移动站详情页: 装修/年代/楼层/卫生间/单价(<meta name="keywords">)
     """
-    hid = house['id']
+    hid = house.get('id', '')
     if not hid:
         return
 
@@ -255,26 +199,27 @@ def fetch_detail(house):
             time.sleep(1)
 
     # --- 字段兜底计算 ---
-    if house['unit_price'] == 0 and house['area'] > 0 and house['total_price'] > 0:
+    if house.get('unit_price', 0) == 0 and house.get('area', 0) > 0 and house.get('total_price', 0) > 0:
         house['unit_price'] = round(house['total_price'] * 10000 / house['area'], 2)
 
-    if house['bathrooms'] == 0:
+    if house.get('bathrooms', 0) == 0:
         wm = re.search(r'(\d+)卫', house.get('layout', ''))
         if wm:
             house['bathrooms'] = int(wm.group(1))
         else:
-            house['bathrooms'] = 1 if house['rooms'] <= 2 else 2
+            house['bathrooms'] = 1 if house.get('rooms', 0) <= 2 else 2
 
     time.sleep(random.uniform(2, 5))
 
-# ==================== 区县爬取 ====================
+
+# ============================================================
+# 区县爬取
+# ============================================================
+
 def crawl_district(code, name, max_pages=80):
-    """
-    单线程爬取一个区县: 列表页→详情页
-    返回全字段房源列表
-    """
+    """单线程爬取一个区县: 列表页→详情页，返回全字段房源列表"""
     all_data = []
-    checkpoint = load_checkpoint(code)
+    checkpoint = load_checkpoint('anjuke_detail', code)
     pages_done = list(checkpoint.get('pages_done', []))
     completed = set(pages_done)
     if completed:
@@ -284,7 +229,10 @@ def crawl_district(code, name, max_pages=80):
         if page in completed:
             continue
 
-        url = f'https://m.anjuke.com/cq/sale/{code}/p{page}/' if page > 1 else f'https://m.anjuke.com/cq/sale/{code}/'
+        if page == 1:
+            url = f'https://m.anjuke.com/cq/sale/{code}/'
+        else:
+            url = f'https://m.anjuke.com/cq/sale/{code}/p{page}/'
 
         if page > 1:
             time.sleep(random.uniform(15, 30))
@@ -311,37 +259,39 @@ def crawl_district(code, name, max_pages=80):
         # 并行抓详情页
         if houses:
             with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as ex:
-                list(ex.map(fetch_detail, houses))
+                # 使用 list() 消费迭代器以触发所有任务
+                for _ in ex.map(fetch_detail, houses):
+                    pass
 
         for h in houses:
-            h['fingerprint'] = fingerprint(
-                h['community'], h['district'], h['area'],
-                h['rooms'], h['total_price']
-            )
+            h['fingerprint'] = make_anjuke_fingerprint(h)
 
         all_data.extend(houses)
         print(f'  [{name}] p{page}: {len(houses)}条,累计{len(all_data)}')
 
         pages_done.append(page)
-        save_checkpoint(code, pages_done)
+        save_checkpoint('anjuke_detail', code, pages_done)
 
     print(f'  [{name}] 完成: {len(pages_done)}页, {len(all_data)}条')
     return all_data
 
-# ==================== 主流程 ====================
+
+# ============================================================
+# 主流程
+# ============================================================
+
 if __name__ == '__main__':
-    import sys
     if len(sys.argv) > 1:
         # 指定区县
         target = sys.argv[1]
-        districts = [(c, n) for c, n in DISTRICTS if n == target or c == target]
+        districts = [(c, n) for c, n in ANJUKE_DISTRICTS if n == target or c == target]
         if not districts:
             print(f'未找到区县: {target}')
             sys.exit(1)
     else:
-        districts = DISTRICTS
+        districts = ANJUKE_DISTRICTS
 
-    print(f'安居客详情爬虫 v1: 单线程区县, {DETAIL_WORKERS}线程详情页')
+    print(f'安居客详情爬虫 v2: 单线程区县, {DETAIL_WORKERS}线程详情页')
     print(f'目标区县: {len(districts)}')
 
     all_data = []
@@ -351,25 +301,12 @@ if __name__ == '__main__':
         all_data.extend(data)
         if data:
             out = os.path.join(OUTPUT_DIR, f'anjuke_detail_{name}.csv')
-            with open(out, 'w', newline='', encoding='utf-8-sig') as f:
-                w = csv.DictWriter(f, fieldnames=CSV_KEYS, extrasaction='ignore')
-                w.writeheader()
-                w.writerows(data)
+            save_csv(data, out, ANJUKE_CSV_KEYS)
             lng_ok = sum(1 for h in data if h.get('lng', 0) > 0)
             print(f'  CSV已保存: {out} ({len(data)}条, 坐标{lng_ok})')
 
     # 汇总
     if len(districts) > 1 and all_data:
-        seen = set()
-        unique = []
-        for h in all_data:
-            fp = h.get('fingerprint', '')
-            if fp and fp not in seen:
-                seen.add(fp)
-                unique.append(h)
         merged = os.path.join(OUTPUT_DIR, 'anjuke_all_detail.csv')
-        with open(merged, 'w', newline='', encoding='utf-8-sig') as f:
-            w = csv.DictWriter(f, fieldnames=CSV_KEYS, extrasaction='ignore')
-            w.writeheader()
-            w.writerows(unique)
-        print(f'\n去重汇总: {len(unique)}条 -> {merged}')
+        unique, count = deduplicate_and_save(all_data, merged, ANJUKE_CSV_KEYS)
+        print(f'\n去重汇总: {count}条 -> {merged}')

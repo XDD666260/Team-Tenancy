@@ -1,149 +1,39 @@
-# 链家二手房爬虫 — 基于API JSON数据
+# ============================================================
+# 链家二手房爬虫 — 基于列表页HTML解析
 # 加固版：指数退避重试 / Session自愈 / UA轮换 / 断点续爬 / 自适应延迟
+# ============================================================
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-from bs4 import BeautifulSoup
-import re
-import json
-import csv
+import sys
 import os
+import re
 import time
 import random
 
-# ===================== Cookie（从浏览器复制） =====================
-COOKIE_STRING = """lianjia_uuid=84e647ad-44a3-4621-873d-fe484a1cfa17; Hm_lvt_46bf127ac9b856df503ec2dbf942b67e=1780982049; HMACCOUNT=807243DEB1481E17; _jzqc=1; _ga=GA1.2.115501286.1780982060; _ga_0VZPJRR5MM=GS2.2.s1780983078$o1$g0$t1780983078$j60$l0$h0; crosSdkDT2019DeviceId=lqz54m-h4glge-i7mgmroflq4zh3j-h60ivcfec; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219eaacd69d9d7a-0d78c933abaac48-4c657b58-1474560-19eaacd69da2234%22%2C%22%24device_id%22%3A%2219eaacd69d9d7a-0d78c933abaac48-4c657b58-1474560-19eaacd69da2234%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_referrer%22%3A%22%22%2C%22%24latest_referrer_host%22%3A%22%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%7D%7D; lfrc_=580a6bb9-8471-49fb-a448-f391eff97170; select_city=500000; _jzqckmp=1; _gid=GA1.2.2061988725.1781266363; login_ucid=2000000542622736; lianjia_token=2.001249871148bb2eed03e4ae205179712a; lianjia_token_secure=2.001249871148bb2eed03e4ae205179712a; security_ticket=V/M4rWgBfi37Ea57EXxhNOaRQpWQ/bNS86BOfwcHnZu8z3SM0ufGW0Pop1BwygkfOUVteRWSmZLBBjV6iwkEvm1qqeikdmKgdgd6uVWaTX+raVVuVj5CEemqNFX2P3EEqn70d122r51pRqe4URrNn+knR3owQ88XgccBzwO8HaI=; lianjia_ssid=45e1b503-b277-4d0f-8d42-8be337a561ca; _jzqa=1.1801755635432145400.1780982049.1781270994.1781346458.10; _jzqx=1.1780982049.1781346458.7.jzqsr=my%2Efeishu%2Ecn|jzqct=/.jzqsr=cq%2Elianjia%2Ecom|jzqct=/ershoufang/; _ga_PV625F3L95=GS2.2.s1781346470$o9$g0$t1781346470$j60$l0$h0; hip=EkmtKL8eQrbcUG9JBeqQw59g6YfhAwNJcyX5_Vx6ZPxEcxAoERTUSKH523tyQyU8dyCEU6XxF6Uct1s4ydOqcNa0LTr8uAhZUFVUKL_LRNEhueQae41mewpG7J_XurRKxarSzWGD5GcsngnIxqBZZvkJt0mn6_QA6VDWsx-iqCGwYpo-SWtyOJOfkngbN74b2jW440PfIdUz-76kDM8FmxFR1u_f1iEo0FtXZGs0NYWBi-hPL5Zy8xHd9AzhQqFWMXi05ngwj7mfBH4yR-1d1ph0BYDCSfr2qWtA; Hm_lpvt_46bf127ac9b856df503ec2dbf942b67e=1781347816; _jzqb=1.2.10.1781346458.1"""
+# 确保项目根目录在 sys.path 中
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-cookies = {}
-COOKIE_STRING = COOKIE_STRING.replace('\n', '').replace('\r', '')
-for item in COOKIE_STRING.split(';'):
-    item = item.strip()
-    if '=' in item:
-        k, v = item.split('=', 1)
-        cookies[k] = v
+from bs4 import BeautifulSoup
 
-# ===================== UA 轮换池 =====================
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
-]
-
-BASE_HEADERS = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.3',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Sec-Ch-Ua': '"Chromium";v="148", "Microsoft Edge";v="148"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
-}
-
-# ===================== 区县列表 =====================
-DISTRICTS = [
-    ('liangjiangxinqu', '两江新区'),
-    ('jiangjing', '江津区'),
-    ('yuzhong', '渝中区'),
-    ('nanan', '南岸区'),
-    ('shapingba', '沙坪坝区'),
-    ('jiulongpo', '九龙坡区'),
-    ('dadukou', '大渡口区'),
-    ('banan', '巴南区'),
-    ('beibei', '北碚区'),
-    ('kaizhouqu','开州区'),
-    ('rongchangqu','荣昌区'),
-    ('bishan','璧山'),
-]
-
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
-CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'checkpoints')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+from crawler.utils import (
+    LIANJIA_COOKIE, LIANJIA_DISTRICTS,
+    USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP,
+    OUTPUT_DIR, CHECKPOINT_DIR, LIANJIA_CSV_KEYS,
+    create_session, refresh_session, safe_get,
+    make_lianjia_fingerprint,
+    load_checkpoint, save_checkpoint,
+    save_csv,
+)
 
 
-# ===================== Session 工厂 =====================
-def create_session():
-    """创建一个带重试策略的新 Session"""
-    session = requests.Session()
+# ============================================================
+# 房源信息解析
+# ============================================================
 
-    retry_strategy = Retry(
-        total=2,
-        backoff_factor=2,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-        respect_retry_after_header=True,
-    )
-    adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-
-    session.headers.update(BASE_HEADERS)
-    session.headers['User-Agent'] = random.choice(USER_AGENTS)
-    session.cookies.update(cookies)
-
-    return session
-
-
-def refresh_session(old_session):
-    """重建 Session"""
-    print('  [Refresh] 重建 Session...')
-    try:
-        old_session.close()
-    except:
-        pass
-    time.sleep(random.uniform(3, 6))
-    return create_session()
-
-
-# ===================== 安全请求 =====================
-def safe_get(session, url, headers_extra=None, timeout=20, max_retries=3):
-    """
-    带指数退避的 GET 请求。
-    返回 (response, new_session)
-    """
-    hdrs = {}
-    if headers_extra:
-        hdrs.update(headers_extra)
-
-    for attempt in range(max_retries):
-        try:
-            resp = session.get(url, headers=hdrs, timeout=timeout)
-            return resp, session
-
-        except (requests.ConnectionError, requests.Timeout,
-                requests.exceptions.ChunkedEncodingError) as e:
-            err_name = type(e).__name__
-            if attempt < max_retries - 1:
-                base = (2 ** attempt) * 3
-                jitter = random.uniform(0, base)
-                wait = base + jitter
-                print(f'  [WARN] [{err_name}] {e}')
-                print(f'  [Retry] {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
-                time.sleep(wait)
-                session = refresh_session(session)
-            else:
-                print(f'  [ERR] 重试{max_retries}次后仍失败: {err_name}')
-                raise
-
-        except requests.RequestException as e:
-            print(f'  [ERR] 请求异常 [{type(e).__name__}]: {e}')
-            raise
-
-    return None, session
-
-
-# ===================== 房源解析 =====================
 def parse_house_info(info_text):
-    """解析 houseInfo 字段"""
+    """解析链家 houseInfo 字段
+
+    格式: "3室2厅|122.25平米|南|精装|高楼层(共18层)|2005年建"
+    """
     parts = [p.strip() for p in info_text.split('|')]
     result = {
         'layout': parts[0] if len(parts) > 0 else '',
@@ -154,10 +44,16 @@ def parse_house_info(info_text):
         'rooms': 0, 'halls': 0, 'bathrooms': 0,
         'floor_type': '', 'total_floors': 0,
     }
+
+    # 面积
     if len(parts) > 1:
         area_str = parts[1].replace('平米', '').replace('㎡', '').strip()
-        try: result['area'] = float(area_str)
-        except: pass
+        try:
+            result['area'] = float(area_str)
+        except ValueError:
+            pass
+
+    # 户型解析
     if result['layout']:
         m = re.search(r'(\d+)室', result['layout'])
         if m: result['rooms'] = int(m.group(1))
@@ -165,20 +61,30 @@ def parse_house_info(info_text):
         if m: result['halls'] = int(m.group(1))
         m = re.search(r'(\d+)卫', result['layout'])
         if m: result['bathrooms'] = int(m.group(1))
+
+    # 楼层解析
     if result['floor_desc']:
         m = re.search(r'(低层|中层|高层)', result['floor_desc'])
         if m: result['floor_type'] = m.group(1)
         m = re.search(r'共(\d+)层', result['floor_desc'])
         if m: result['total_floors'] = int(m.group(1))
+
     return result
 
 
-def get_detail_page(house_id, district_name):
-    """访问详情页，获取完整数据（带重试）"""
-    url = f'https://cq.lianjia.com/ershoufang/{house_id}.html'
+# ============================================================
+# 详情页获取（可选，用于获取经纬度和建造年代等列表页缺失字段）
+# 注意：频繁访问详情页容易触发链家风控，仅按需使用
+# ============================================================
 
-    # 详情页使用独立 session，避免关联
-    detail_session = create_session()
+def get_detail_page(house_id, district_name):
+    """访问详情页，获取完整数据（带重试）。
+
+    注意: 此函数会产生额外请求，建议优先使用列表页数据，
+    仅在需要经纬度/建造年代时调用。使用独立 Session 避免关联。
+    """
+    url = f'https://cq.lianjia.com/ershoufang/{house_id}.html'
+    detail_session = create_session(LIANJIA_COOKIE, USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP)
 
     try:
         resp, _ = safe_get(detail_session, url, timeout=15, max_retries=2)
@@ -209,10 +115,11 @@ def get_detail_page(house_id, district_name):
         area_els = soup.select('.areaName .info a')
         district = area_els[1].get_text(strip=True) if len(area_els) >= 2 else district_name
 
-        # 详细地址：拼接 .areaName 下所有 .info 的文本
+        # 详细地址
         addr_spans = soup.select('.areaName .info')
         address = ''.join(s.get_text(strip=True) for s in addr_spans)
 
+        # 经纬度
         lng, lat = 0, 0
         scripts = soup.find_all('script')
         for script in scripts:
@@ -223,6 +130,7 @@ def get_detail_page(house_id, district_name):
                 if m_lat: lat = float(m_lat.group(1))
                 break
 
+        # 建造年代
         build_year = 0
         for script in scripts:
             if script.string and 'buildYear' in script.string:
@@ -248,37 +156,23 @@ def get_detail_page(house_id, district_name):
         return {}
 
 
-# ===================== 断点续爬 =====================
-def load_checkpoint(code):
-    cp_path = os.path.join(CHECKPOINT_DIR, f'lianjia_{code}.json')
-    if os.path.exists(cp_path):
-        with open(cp_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {'pages_done': [], 'house_ids_done': []}
+# ============================================================
+# 区县爬取（列表页直接解析，不访问详情页）
+# ============================================================
 
-
-def save_checkpoint(code, pages_done, house_ids_done=None):
-    cp_path = os.path.join(CHECKPOINT_DIR, f'lianjia_{code}.json')
-    with open(cp_path, 'w', encoding='utf-8') as f:
-        json.dump({
-            'pages_done': pages_done,
-            'house_ids_done': house_ids_done or []
-        }, f, ensure_ascii=False)
-
-
-# ===================== 区县爬取 =====================
 def crawl_district(code, name, max_pages=50, resume=True):
-    """爬取一个区县"""
+    """爬取一个区县的列表页，直接解析全部字段"""
     all_data = []
-    session = create_session()
+    session = create_session(LIANJIA_COOKIE, USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP)
     done_ids = set()  # 本轮去重
 
-    checkpoint = load_checkpoint(code) if resume else {}
+    checkpoint = load_checkpoint('lianjia', code) if resume else {}
     pages_done = list(checkpoint.get('pages_done', []))
     completed_pages = set(pages_done)
 
     if completed_pages:
-        print(f'  [CP] 断点: 已完成 {len(completed_pages)} 页，从第 {max(completed_pages)+1} 页继续')
+        print(f'  [CP] 断点: 已完成 {len(completed_pages)} 页，'
+              f'从第 {max(completed_pages) + 1} 页继续')
 
     for page in range(1, max_pages + 1):
         if page in completed_pages:
@@ -287,10 +181,10 @@ def crawl_district(code, name, max_pages=50, resume=True):
         url = f'https://cq.lianjia.com/ershoufang/{code}/pg{page}/'
         print(f'\n--- [{name}] 第{page}/{max_pages}页 ---')
 
-        # 极度保守延迟：避免触发风控
+        # 极度保守延迟：链家风控比安居客更严格
         if page > 1:
             if page == 2:
-                base_delay = random.uniform(90, 150)  # 第1→2页等很久
+                base_delay = random.uniform(90, 150)
             elif page <= 5:
                 base_delay = random.uniform(60, 90)
             elif page <= 15:
@@ -310,10 +204,12 @@ def crawl_district(code, name, max_pages=50, resume=True):
             time.sleep(rest)
 
         # 请求列表页
-        referer = f'https://cq.lianjia.com/ershoufang/{code}/pg{page-1}/' if page > 1 else f'https://cq.lianjia.com/ershoufang/{code}/'
+        referer = (f'https://cq.lianjia.com/ershoufang/{code}/pg{page - 1}/'
+                   if page > 1
+                   else f'https://cq.lianjia.com/ershoufang/{code}/')
 
         try:
-            resp, session = safe_get(session, url, headers_extra={'Referer': referer}, timeout=20)
+            resp, session = safe_get(session, url, referer=referer, timeout=20)
         except Exception as e:
             print(f'  [ERR] 列表页请求失败: {type(e).__name__}')
             continue
@@ -336,15 +232,15 @@ def crawl_district(code, name, max_pages=50, resume=True):
                 continue
             break
 
-        # 直接从列表页解析所有房源字段（不访问详情页，避免触发风控）
+        # 解析列表页
         soup = BeautifulSoup(resp.text, 'lxml')
         items = soup.select('.sellListContent li')
         if not items:
             items = soup.select('.sellListContent .info')
         if not items:
-            # fallback: find listing links
             items = soup.select('a[href*="/ershoufang/"]')
-            items = [it for it in items if re.search(r'/ershoufang/\d+\.html', it.get('href', ''))]
+            items = [it for it in items
+                     if re.search(r'/ershoufang/\d+\.html', it.get('href', ''))]
 
         if not items:
             print(f'  未找到房源，停止翻页')
@@ -357,7 +253,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
         page_count = 0
         for item in items:
             try:
-                # 提取链接中的ID（去重用）
+                # 提取链接中的ID
                 a_tag = item.select_one('a[href*="/ershoufang/"]') if item.name != 'a' else item
                 if not a_tag or a_tag.name != 'a':
                     a_tag = item.find('a')
@@ -376,16 +272,20 @@ def crawl_district(code, name, max_pages=50, resume=True):
                 # 总价
                 price_el = item.select_one('.totalPrice span') or item.select_one('.totalPrice')
                 price_text = price_el.get_text(strip=True) if price_el else '0'
-                try: total_price = float(re.sub(r'[^\d.]', '', price_text))
-                except: total_price = 0
+                try:
+                    total_price = float(re.sub(r'[^\d.]', '', price_text))
+                except ValueError:
+                    total_price = 0
 
                 # 单价
                 unit_el = item.select_one('.unitPrice span') or item.select_one('.unitPrice')
                 unit_text = unit_el.get_text(strip=True) if unit_el else '0'
-                try: unit_price = float(re.sub(r'[^\d.]', '', unit_text))
-                except: unit_price = 0
+                try:
+                    unit_price = float(re.sub(r'[^\d.]', '', unit_text))
+                except ValueError:
+                    unit_price = 0
 
-                # 小区 / 位置
+                # 小区 / 商圈
                 pos_els = item.select('.positionInfo a')
                 community = pos_els[0].get_text(strip=True) if len(pos_els) >= 1 else ''
                 biz_circle = pos_els[1].get_text(strip=True) if len(pos_els) >= 2 else ''
@@ -405,12 +305,17 @@ def crawl_district(code, name, max_pages=50, resume=True):
                     'unit_price': unit_price,
                     'community': community,
                     'district': name,
-                    'address': biz_circle,  # 商圈作为地址补充
+                    'address': biz_circle,
                     'lng': 0, 'lat': 0,
                     **info_data,
                     'build_year': 0,
                     'source': 'lianjia',
+                    'source_id': hid,
                 }
+
+                # 生成指纹（新增！）
+                data['fingerprint'] = make_lianjia_fingerprint(data)
+
                 all_data.append(data)
                 if hid:
                     done_ids.add(hid)
@@ -423,7 +328,7 @@ def crawl_district(code, name, max_pages=50, resume=True):
 
         if page_count > 0:
             pages_done.append(page)
-            save_checkpoint(code, pages_done)
+            save_checkpoint('lianjia', code, pages_done)
         elif len(resp.text) < 10000:
             print(f'  [WARN] 页面过短({len(resp.text)}B)，疑似拦截，不保存断点')
 
@@ -438,28 +343,24 @@ def crawl_district(code, name, max_pages=50, resume=True):
     return all_data
 
 
-# ===================== 主流程 =====================
+# ============================================================
+# 主流程
+# ============================================================
+
 if __name__ == '__main__':
     all_houses = []
 
-    for code, name in DISTRICTS:
-        print(f'\n{"="*50}')
+    for code, name in LIANJIA_DISTRICTS:
+        print(f'\n{"=" * 50}')
         print(f'开始爬取链家 {name}...')
-        print(f'{"="*50}')
+        print(f'{"=" * 50}')
 
         data = crawl_district(code, name, max_pages=80, resume=True)
         all_houses.extend(data)
 
         output_path = os.path.join(OUTPUT_DIR, f'lianjia_{name}.csv')
         if data:
-            keys = ['id','title','total_price','unit_price','community',
-                    'district','address','lng','lat','layout','rooms','halls','bathrooms',
-                    'area','orientation','decoration','floor_desc','floor_type',
-                    'total_floors','build_year','source']
-            with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
-                writer = csv.DictWriter(f, fieldnames=keys, extrasaction='ignore')
-                writer.writeheader()
-                writer.writerows(data)
+            save_csv(data, output_path, LIANJIA_CSV_KEYS)
 
         print(f'\n>>> {name}完成，本区{len(data)}条，累计{len(all_houses)}条')
 
@@ -467,6 +368,6 @@ if __name__ == '__main__':
         print(f'  区间冷却 {wait:.1f}s ...')
         time.sleep(wait)
 
-    print(f'\n{"="*50}')
+    print(f'\n{"=" * 50}')
     print(f'链家全部完成！共 {len(all_houses)} 条')
-    print(f'{"="*50}')
+    print(f'{"=" * 50}')

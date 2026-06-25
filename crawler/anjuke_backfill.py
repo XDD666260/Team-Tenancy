@@ -5,90 +5,56 @@
 # 边补边写回CSV, 支持断点续补
 # ============================================================
 
-import requests, re, csv, os, time, random, json, glob
+import os
+import re
+import sys
+import time
+import random
+import json
+import glob
+
+# 确保项目根目录在 sys.path 中
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 
-# ==================== 代理 ====================
-PROXY_URL = 'http://用户名:密码@隧道地址:端口'
-PROXIES = {'http': PROXY_URL, 'https': PROXY_URL}
+from crawler.utils import (
+    ANJUKE_NAME_TO_CODE,
+    OUTPUT_DIR, CHECKPOINT_DIR,
+    mobile_get, desktop_get, safe_float,
+)
 
-UA_MOBILE = [
-    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-]
-UA_DESKTOP = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-]
-
-DISTRICTS = [
-    ('yubei','两江新区'),('yuzhong','渝中区'),('nanana','南岸区'),
-    ('shapingba','沙坪坝区'),('jiulongpo','九龙坡区'),('banan','巴南区'),
-    ('beibei','北碚区'),('dadukou','大渡口区'),('bishanqu','璧山区'),
-    ('yongchuanqu','永川区'),('wanzhouqu','万州区'),('jiangjinqu','江津区'),
-    ('hechuanqu','合川区'),('tongliangqu','铜梁区'),('fulingqu','涪陵区'),
-    ('changshouqu','长寿区'),('rongchangqu','荣昌区'),('qijiangqu','綦江区'),
-    ('nanchuanqu','南川区'),('dazhuqu','大足区'),('tongnanqu','潼南区'),
-    ('kaizhoukuaixian','开州区'),('dainjiangxian','垫江县'),
-    ('liangpingxian','梁平区'),('wansheng','万盛区'),('fengjiexian','奉节县'),
-    ('yunyangxian','云阳县'),('zhongxian','忠县'),('wuxixian','巫溪县'),
-    ('qianjiangqu','黔江区'),('wulongxian','武隆区'),('cqwushanxian','巫山县'),
-    ('chengkouxian','城口县'),('pengshuimiaozutujiazuzhixian','彭水县'),
-    ('xiushantujiazumiaozuzhixian','秀山县'),('shizhutujiazuzhixian','石柱县'),
-    ('youyangtujiazumiaozuzhixian','酉阳县'),('fengduxian','丰都县'),
-]
-NAME_TO_CODE = {n: c for c, n in DISTRICTS}
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-RAW_DIR = os.path.join(BASE_DIR, '..', 'data', 'raw')
-PROGRESS_FILE = os.path.join(BASE_DIR, '..', 'data', 'checkpoints', 'backfill_progress.json')
 DETAIL_WORKERS = 6
+PROGRESS_FILE = os.path.join(CHECKPOINT_DIR, 'backfill_progress.json')
 
-# ==================== HTTP ====================
-def mobile_get(url, timeout=60):
-    headers = {
-        'User-Agent': random.choice(UA_MOBILE),
-        'Accept': 'text/html,application/xhtml+xml',
-        'Connection': 'close',
-    }
-    for _ in range(5):
-        try:
-            resp = requests.get(url, headers=headers, proxies=PROXIES, timeout=timeout)
-            resp.text
-            return resp
-        except Exception:
-            time.sleep(random.uniform(3, 8))
-    return None
 
-def desktop_get(url, timeout=50):
-    headers = {
-        'User-Agent': random.choice(UA_DESKTOP),
-        'Accept': 'text/html',
-        'Connection': 'close',
-    }
-    for _ in range(3):
-        try:
-            resp = requests.get(url, headers=headers, proxies=PROXIES, timeout=timeout)
-            resp.text
-            return resp
-        except Exception:
-            time.sleep(2)
-    return None
+# ============================================================
+# 进度管理
+# ============================================================
 
-# ==================== 进度管理 ====================
 def load_progress():
     if os.path.exists(PROGRESS_FILE):
-        with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
     return {'processed_files': [], 'total_filled': 0}
+
 
 def save_progress(processed_files, total_filled):
     with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
         json.dump({'processed_files': processed_files, 'total_filled': total_filled}, f)
 
-# ==================== 缺失字段分析 ====================
+
+# ============================================================
+# 缺失字段分析
+# ============================================================
+
 def analyze_csv(fpath):
     """分析CSV中哪些字段缺失"""
+    import csv
     with open(fpath, 'r', encoding='utf-8-sig') as f:
         rows = list(csv.DictReader(f))
     if not rows:
@@ -96,21 +62,29 @@ def analyze_csv(fpath):
 
     total = len(rows)
     missing = {
-        'lng': sum(1 for r in rows if float(r.get('lng', 0)) == 0),
+        'lng': sum(1 for r in rows if safe_float(r.get('lng')) == 0),
         'decoration': sum(1 for r in rows if not r.get('decoration', '')),
         'floor_desc': sum(1 for r in rows if not r.get('floor_desc', '')),
-        'build_year': sum(1 for r in rows if int(r.get('build_year', 0)) == 0),
-        'bathrooms': sum(1 for r in rows if int(r.get('bathrooms', 0)) == 0),
+        'build_year': sum(1 for r in rows if int(r.get('build_year', 0) or 0) == 0),
+        'bathrooms': sum(1 for r in rows if int(r.get('bathrooms', 0) or 0) == 0),
         'id': sum(1 for r in rows if not r.get('id', '')),
     }
     return rows, missing, total
 
-# ==================== 列表页扫描(ID获取) ====================
+
+# ============================================================
+# 列表页扫描(ID获取)
+# ============================================================
+
 def scan_list_pages(code, max_pages=12):
     """扫描移动站列表页, 建立 title→id 映射"""
     title_to_id = {}
     for page in range(1, max_pages + 1):
-        url = f'https://m.anjuke.com/cq/sale/{code}/p{page}/' if page > 1 else f'https://m.anjuke.com/cq/sale/{code}/'
+        if page == 1:
+            url = f'https://m.anjuke.com/cq/sale/{code}/'
+        else:
+            url = f'https://m.anjuke.com/cq/sale/{code}/p{page}/'
+
         resp = mobile_get(url)
         if resp is None or len(resp.text) < 5000:
             break
@@ -142,13 +116,17 @@ def scan_list_pages(code, max_pages=12):
 
     return title_to_id
 
-# ==================== 详情页字段获取 ====================
+
+# ============================================================
+# 详情页字段获取
+# ============================================================
+
 def fetch_detail_fields(hid):
     """获取一个房源的详情页字段"""
     result = {
         'lng': 0, 'lat': 0, 'decoration': '',
         'floor_desc': '', 'floor_type': '', 'total_floors': 0,
-        'build_year': 0, 'bathrooms': 0, 'id': hid
+        'build_year': 0, 'bathrooms': 0, 'id': hid,
     }
 
     # 桌面站: 经纬度
@@ -207,20 +185,23 @@ def fetch_detail_fields(hid):
 
     return result
 
-# ==================== 单文件处理 ====================
+
+# ============================================================
+# 单文件处理
+# ============================================================
+
 def process_csv(fpath):
-    """
-    处理一个CSV文件:
-    1. 分析缺失字段
-    2. 扫描列表页获取 title→id 映射
-    3. 标题+区县+小区匹配, 进详情页补字段
-    4. 边补边保存
-    """
+    """处理一个CSV文件: 分析→扫描→匹配→补字段→保存"""
+    import csv
+
     fname = os.path.basename(fpath)
-    dist_name = fname.replace('anjuke_m_', '').replace('anjuke_fast_', '').replace('.csv', '')
-    code = NAME_TO_CODE.get(dist_name)
+    # 修复: 更健壮的文件名解析
+    dist_name = fname.replace('anjuke_m_', '').replace('anjuke_fast_', '') \
+                      .replace('anjuke_detail_', '').replace('anjuke_', '') \
+                      .replace('.csv', '')
+    code = ANJUKE_NAME_TO_CODE.get(dist_name)
     if not code:
-        print(f'[{fname}] 找不到区县代码')
+        print(f'[{fname}] 找不到区县代码 (提取名称: {dist_name})')
         return 0
 
     print(f'\n=== {dist_name} ===')
@@ -230,7 +211,8 @@ def process_csv(fpath):
     if not rows:
         return 0
     print(f'  总{total}条')
-    print(f'  缺坐标:{missing["lng"]} 缺装修:{missing["decoration"]} 缺年代:{missing["build_year"]}')
+    print(f'  缺坐标:{missing["lng"]} 缺装修:{missing["decoration"]} '
+          f'缺年代:{missing["build_year"]}')
     print(f'  缺楼层:{missing["floor_desc"]} 缺卫生间:{missing["bathrooms"]}')
 
     need_fill = missing['lng'] + missing['decoration'] + missing['build_year']
@@ -247,23 +229,13 @@ def process_csv(fpath):
     to_fill = []
     for i, row in enumerate(rows):
         # 跳过已有坐标的
-        if float(row.get('lng', 0)) > 0:
+        if safe_float(row.get('lng')) > 0:
             continue
 
         title = row.get('title', '').strip()
-        community = row.get('community', '').strip()
-        district = row.get('district', '').strip()
-
-        # 匹配条件: 标题一致 AND 区县一致
         hid = title_to_id.get(title)
         if not hid:
             continue
-
-        # 额外验证: 小区名匹配(容错)
-        csv_comm = community
-        if csv_comm:
-            # 小区名包含关系即可
-            pass  # 标题匹配已经足够精确
 
         to_fill.append((i, hid))
 
@@ -276,22 +248,30 @@ def process_csv(fpath):
     def fill_one(idx_hid):
         idx, hid = idx_hid
         fields = fetch_detail_fields(hid)
+        # 修复: 统计所有补全的字段，不只是lng
+        filled_any = False
         if fields['lng']:
             rows[idx]['lng'] = str(fields['lng'])
             rows[idx]['lat'] = str(fields['lat'])
+            filled_any = True
         if fields['decoration']:
             rows[idx]['decoration'] = fields['decoration']
+            filled_any = True
         if fields['floor_desc']:
             rows[idx]['floor_desc'] = fields['floor_desc']
             rows[idx]['floor_type'] = fields['floor_type']
             rows[idx]['total_floors'] = str(fields['total_floors'])
+            filled_any = True
         if fields['build_year']:
             rows[idx]['build_year'] = str(fields['build_year'])
+            filled_any = True
         if fields['bathrooms']:
             rows[idx]['bathrooms'] = str(fields['bathrooms'])
+            filled_any = True
         if fields['id']:
             rows[idx]['id'] = fields['id']
-        return 1 if fields['lng'] else 0
+            filled_any = True
+        return 1 if filled_any else 0
 
     updated = 0
     with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as ex:
@@ -308,31 +288,35 @@ def process_csv(fpath):
         w.writeheader()
         w.writerows(rows)
 
-    lng_ok = sum(1 for r in rows if float(r.get('lng', 0)) > 0)
-    print(f'  [{dist_name}] 完成: 坐标{lng_ok}/{len(rows)}, 本次更新{updated}')
+    lng_ok = sum(1 for r in rows if safe_float(r.get('lng')) > 0)
+    print(f'  [{dist_name}] 完成: 坐标{lng_ok}/{len(rows)}, 本次更新{updated}个字段组')
     return updated
 
-# ==================== 主流程 ====================
-if __name__ == '__main__':
-    import sys
 
+# ============================================================
+# 主流程
+# ============================================================
+
+if __name__ == '__main__':
     # 支持指定文件或目录
     if len(sys.argv) > 1:
         target = sys.argv[1]
         if os.path.isdir(target):
-            csv_files = sorted(glob.glob(f'{target}/*.csv'))
+            csv_files = sorted(glob.glob(os.path.join(target, '*.csv')))
         elif os.path.isfile(target):
             csv_files = [target]
         else:
             # 按区县名匹配
-            csv_files = sorted(glob.glob(f'{RAW_DIR}/anjuke_m_{target}.csv'))
+            csv_files = sorted(glob.glob(os.path.join(OUTPUT_DIR, f'anjuke_m_{target}.csv')))
             if not csv_files:
-                csv_files = sorted(glob.glob(f'{RAW_DIR}/anjuke_fast_{target}.csv'))
+                csv_files = sorted(glob.glob(os.path.join(OUTPUT_DIR, f'anjuke_fast_{target}.csv')))
+            if not csv_files:
+                csv_files = sorted(glob.glob(os.path.join(OUTPUT_DIR, f'anjuke_detail_{target}.csv')))
     else:
-        # 默认处理所有 anjuke_m_*.csv
-        csv_files = sorted(glob.glob(f'{RAW_DIR}/anjuke_m_*.csv'))
-        if not csv_files:
-            csv_files = sorted(glob.glob(f'{RAW_DIR}/anjuke_fast_*.csv'))
+        # 默认处理所有 anjuke_*.csv（排除汇总文件）
+        all_csv = sorted(glob.glob(os.path.join(OUTPUT_DIR, 'anjuke_*.csv')))
+        csv_files = [f for f in all_csv
+                     if not any(x in f for x in ['anjuke_all', 'anjuke_m_missing', 'lianjia'])]
 
     if not csv_files:
         print('未找到CSV文件')
@@ -352,4 +336,4 @@ if __name__ == '__main__':
         total_filled += updated
         save_progress(list(processed), total_filled)
 
-    print(f'\n全部完成! 累计更新 {total_filled} 条')
+    print(f'\n全部完成! 累计更新 {total_filled} 个字段组')

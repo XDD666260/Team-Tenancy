@@ -1,201 +1,134 @@
 # ============================================================
-# 安居客缺失区县爬虫 v2 — PC站 + Cookie + 直接连接
+# 安居客缺失区县爬虫 v3 — PC站 + Cookie + 直接连接
 # 说明: 66daili免费代理不支持HTTPS穿透, 故改用直接连接+Cookie
 #       实测直接连接 + Cookie 可稳定访问安居客PC站
+# 目标: 远郊区县（主爬虫覆盖不全的补充）
 # ============================================================
 
-import sys
-import io
-# 修复Windows控制台GBK编码问题（仅在交互终端时生效）
-if sys.platform == 'win32' and hasattr(sys.stdout, 'buffer') and sys.stdout.buffer:
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-    except (ValueError, AttributeError):
-        pass
-
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-import re
-import csv
 import os
+import re
+import sys
 import time
 import random
-import hashlib
-import json
+import traceback
+
+# 确保项目根目录在 sys.path 中
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from bs4 import BeautifulSoup
 
-# ==================== Cookie（从浏览器复制，过期需更新） ====================
-COOKIE_STRING = """aQQ_ajkguid=F7B4D023-2524-4E8F-9FA7-FB4B466A414A; sessid=0ADC5D26-DE20-42FC-B1C9-C3DF9A7CCDFF; ajk-appVersion=; ctid=20; id58=uVcyWmonw3RqSxvUFwlTAg==; xxzlclientid=9e9f197b-4ac8-4fe0-b525-1780990835353; xxzlxxid=pfmx9YPrZMngaMg5IB8XhLUfiXG951fL3E4v4TYV7zQvgVqboAu0QQrrHcrCK6A494Dv; fzq_h=a0aac02a0d5f6990093f2ca9da7a4d64_1781527616283_330b581300e948bcaf5c7bd0f9862a5d_47901724934875746904071831303115791755; twe=2; obtain_by=1; xxzlbbid=pfmbREFo2urLhMWmZMEGU/Bwz1Q8xv58iE8STQVPF67vy4LzZv60YXPhcPE7oQPfnRXDqZwvZKTG2Q432Tn22Cvldx6veGZQ1DRcLWT4nMjv9ZUQ2Mj+Cq6AbZP4gAvZPCv10KGDQ/YxNzgxNTI4MzIwMTQyODI0_1; fzq_js_anjuke_ershoufang_pc=37a80981d01b212699fb5f2491586993_1781528328943_23"""
+from crawler.utils import (
+    ANJUKE_COOKIE, ANJUKE_DISTRICTS,
+    USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP,
+    OUTPUT_DIR, CHECKPOINT_DIR, ANJUKE_CSV_KEYS,
+    create_session, refresh_session, safe_get,
+    make_anjuke_fingerprint,
+    load_checkpoint, save_checkpoint,
+    save_csv, deduplicate_and_save,
+)
+
+# ============================================================
+# Windows 控制台编码修复（仅在交互终端时生效）
+# ============================================================
+
+def _fix_windows_console():
+    """修复 Windows 控制台 GBK 编码问题。
+
+    注意: 仅在交互式终端时生效；重定向/管道输出不受影响。
+    更推荐的方案是设置环境变量 PYTHONIOENCODING=utf-8。
+    """
+    if sys.platform != 'win32':
+        return
+    try:
+        import io
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.buffer:
+            sys.stdout = io.TextIOWrapper(
+                sys.stdout.buffer,
+                encoding='utf-8',
+                errors='replace',
+                line_buffering=sys.stdout.line_buffering,
+            )
+        if hasattr(sys.stderr, 'buffer') and sys.stderr.buffer:
+            sys.stderr = io.TextIOWrapper(
+                sys.stderr.buffer,
+                encoding='utf-8',
+                errors='replace',
+                line_buffering=sys.stderr.line_buffering,
+            )
+    except (ValueError, AttributeError):
+        pass  # 非交互式终端，忽略
 
 
-def parse_cookies(s):
-    cookies = {}
-    for item in s.replace('\n', '').replace('\r', '').split(';'):
-        item = item.strip()
-        if '=' in item:
-            k, v = item.split('=', 1)
-            cookies[k] = v
-    return cookies
+_fix_windows_console()
 
 
-COOKIES = parse_cookies(COOKIE_STRING)
+# ============================================================
+# 目标: 远郊区县（安居客38区中主爬虫重点覆盖14核心区，
+#        此爬虫专门处理其余远郊区县）
+# ============================================================
 
-# ==================== UA 轮换池 ====================
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.4 Safari/605.1.15',
-]
-
-BASE_HEADERS = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.3',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'max-age=0',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
+# 核心区（主爬虫已充分覆盖）
+CORE_DISTRICTS = {
+    'yubei', 'yuzhong', 'nanana', 'shapingba', 'jiulongpo',
+    'banan', 'beibei', 'dadukou', 'bishanqu',
+    'yongchuanqu', 'wanzhouqu', 'jiangjinqu', 'hechuanqu', 'fulingqu',
 }
 
-# ==================== 目标: 8个缺失区县 ====================
-MISSING_DISTRICTS = [
-    ('wulongxian',      '武隆区'),
-    ('cqwushanxian',    '巫山县'),
-    ('chengkouxian',    '城口县'),
-    ('fengduxian',      '丰都县'),
-]
-
-# ==================== 路径 ====================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(BASE_DIR, '..', 'data', 'raw')
-CHECKPOINT_DIR = os.path.join(BASE_DIR, '..', 'data', 'checkpoints')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-
-# CSV字段（与 anjuke_fast.py 一致）
-CSV_KEYS = [
-    'id', 'title', 'total_price', 'unit_price', 'community', 'district',
-    'address', 'lng', 'lat', 'layout', 'rooms', 'halls', 'bathrooms',
-    'area', 'orientation', 'decoration', 'floor_desc', 'floor_type',
-    'total_floors', 'build_year', 'tags', 'source', 'fingerprint'
-]
+# 缺失区县 = 全部区县 - 核心区
+MISSING_DISTRICTS = [(c, n) for c, n in ANJUKE_DISTRICTS if c not in CORE_DISTRICTS]
 
 
-# ==================== Session 工厂 ====================
-def create_session():
-    session = requests.Session()
-    retry_strategy = Retry(
-        total=2,
-        backoff_factor=2,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-        respect_retry_after_header=True,
-    )
-    adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    session.headers.update(BASE_HEADERS)
-    session.headers['User-Agent'] = random.choice(USER_AGENTS)
-    session.cookies.update(COOKIES)
-    return session
+# ============================================================
+# PC站列表页解析
+# ============================================================
 
-
-def refresh_session(old_session):
-    try:
-        old_session.close()
-    except Exception:
-        pass
-    time.sleep(random.uniform(3, 6))
-    return create_session()
-
-
-# ==================== 安全请求 (直接连接, 指数退避) ====================
-def safe_get(session, url, referer='', timeout=25, max_retries=4):
-    headers = {}
-    if referer:
-        headers['Referer'] = referer
-
-    for attempt in range(max_retries):
-        try:
-            resp = session.get(url, headers=headers, timeout=timeout)
-
-            # 检查反爬
-            if len(resp.text) < 2000:
-                print(f'  [WARN] 响应过短({len(resp.text)}B), 可能被拦截')
-                if attempt < max_retries - 1:
-                    wait = (2 ** attempt) * 5 + random.uniform(0, 5)
-                    print(f'  [Retry] {wait:.1f}s后重试...')
-                    time.sleep(wait)
-                    session = refresh_session(session)
-                    continue
-                else:
-                    return resp, session
-
-            if '访问验证' in resp.text or '安全验证' in resp.text or 'antibot' in resp.text.lower() or 'xxzlGatewayUrl' in resp.text:
-                print(f'  [WARN] 触发验证码, 冷却重试...')
-                if attempt < max_retries - 1:
-                    wait = random.uniform(30, 60)
-                    time.sleep(wait)
-                    session = refresh_session(session)
-                    continue
-
-            return resp, session
-
-        except (requests.ConnectionError, requests.Timeout,
-                requests.exceptions.ChunkedEncodingError) as e:
-            if attempt < max_retries - 1:
-                wait = (2 ** attempt) * 3 + random.uniform(0, 3)
-                print(f'  [WARN] [{type(e).__name__}] {wait:.1f}s后重试 ({attempt+1}/{max_retries-1})...')
-                time.sleep(wait)
-                session = refresh_session(session)
-            else:
-                print(f'  [ERR] 重试{max_retries}次后仍失败: {type(e).__name__}')
-                raise
-
-        except requests.RequestException as e:
-            print(f'  [ERR] 请求异常 [{type(e).__name__}]: {e}')
-            raise
-
-    return None, session
-
-
-# ==================== PC站列表页解析 (来自anjuke_spider.py) ====================
 def parse_house_info(item):
     """解析安居客PC站房源卡片"""
     house = {}
 
+    # --- 标题 ---
     try:
-        # 标题
         title_el = item.select_one('.property-content-title-name')
         house['title'] = title_el.get_text(strip=True) if title_el else ''
+    except Exception:
+        house['title'] = ''
 
-        # 总价
+    # --- 总价 ---
+    try:
         price_el = item.select_one('.property-price-total-num')
         price_text = price_el.get_text(strip=True) if price_el else '0'
         house['total_price'] = float(re.sub(r'[^\d.]', '', price_text)) if price_text else 0
+    except Exception:
+        house['total_price'] = 0
 
-        # 单价
+    # --- 单价 ---
+    try:
         unit_el = item.select_one('.property-price-average')
         unit_text = unit_el.get_text(strip=True) if unit_el else '0'
         house['unit_price'] = float(re.sub(r'[^\d.]', '', unit_text)) if unit_text else 0
+    except Exception:
+        house['unit_price'] = 0
 
-        # 小区名称
+    # --- 小区名称 ---
+    try:
         comm_el = item.select_one('.property-content-info-comm-name')
         house['community'] = comm_el.get_text(strip=True) if comm_el else ''
+    except Exception:
+        house['community'] = ''
 
-        # 详细地址
+    # --- 详细地址 ---
+    try:
         addr_el = item.select_one('.property-content-info-comm-address')
         house['address'] = addr_el.get_text(strip=True) if addr_el else ''
+    except Exception:
+        house['address'] = ''
 
-        # 户型/面积/朝向/楼层/年代
-        info_ps = item.select('.property-content-info:not(.property-content-info-comm) > .property-content-info-text')
+    # --- 户型/面积/朝向/楼层/年代 ---
+    try:
+        info_ps = item.select(
+            '.property-content-info:not(.property-content-info-comm) > '
+            '.property-content-info-text'
+        )
         info_texts = [p.get_text(strip=True) for p in info_ps]
 
         layout = info_texts[0] if len(info_texts) > 0 else ''
@@ -234,7 +167,20 @@ def parse_house_info(item):
             bm = re.search(r'(\d+)年建造', info_texts[4])
             if bm: house['build_year'] = int(bm.group(1))
 
-        # 从链接提取房源ID
+    except Exception:
+        house.setdefault('layout', '')
+        house.setdefault('rooms', 0)
+        house.setdefault('halls', 0)
+        house.setdefault('bathrooms', 0)
+        house.setdefault('area', 0)
+        house.setdefault('orientation', '')
+        house.setdefault('floor_desc', '')
+        house.setdefault('floor_type', '')
+        house.setdefault('total_floors', 0)
+        house.setdefault('build_year', 0)
+
+    # --- 从链接提取房源ID ---
+    try:
         parent_a = item.find_parent('a')
         if not parent_a:
             parent_a = item.parent if item.parent and item.parent.name == 'a' else None
@@ -244,52 +190,32 @@ def parse_house_info(item):
             m_id = re.search(r'/prop/view/(S?\d+)', href)
             if m_id:
                 house['id'] = m_id.group(1)
-
-        # 默认值
-        house['decoration'] = ''
-        house['lng'] = house['lat'] = 0
-        house['tags'] = ''
-        house['source'] = 'anjuke'
-
     except Exception:
-        pass
+        house['id'] = ''
+
+    # --- 默认值 ---
+    house.setdefault('decoration', '')
+    house.setdefault('lng', 0)
+    house.setdefault('lat', 0)
+    house.setdefault('tags', '')
+    house.setdefault('followers', 0)
+    house.setdefault('source', 'anjuke')
+    house.setdefault('source_id', house.get('id', ''))
 
     return house
 
 
-def make_fingerprint(house):
-    key = f"{house.get('community','')}|{house.get('district','')}|{house.get('area',0)}|{house.get('rooms',0)}|{house.get('total_price',0)}"
-    return hashlib.md5(key.encode()).hexdigest()
+# ============================================================
+# 区县爬取
+# ============================================================
 
-
-# ==================== 断点管理 ====================
-def load_checkpoint(code):
-    path = os.path.join(CHECKPOINT_DIR, f'anjuke_m_{code}.json')
-    if os.path.exists(path):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return data.get('pages_done', [])
-                return data
-        except Exception:
-            pass
-    return []
-
-
-def save_checkpoint(code, pages_done):
-    path = os.path.join(CHECKPOINT_DIR, f'anjuke_m_{code}.json')
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'pages_done': list(pages_done)}, f, ensure_ascii=False)
-
-
-# ==================== 区县爬取 ====================
 def crawl_district(code, name, max_pages=100):
     """爬取一个区县的PC站列表页"""
     all_data = []
-    session = create_session()
+    session = create_session(ANJUKE_COOKIE, USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP)
 
-    pages_done = load_checkpoint(code)
+    checkpoint = load_checkpoint('anjuke_m', code)
+    pages_done = list(checkpoint.get('pages_done', []))
     completed = set(pages_done)
 
     if completed:
@@ -304,11 +230,10 @@ def crawl_district(code, name, max_pages=100):
             referer = 'https://chongqing.anjuke.com/sale/'
         else:
             url = f'https://chongqing.anjuke.com/sale/{code}/p{page}/'
-            referer = f'https://chongqing.anjuke.com/sale/{code}/p{page-1}/'
+            referer = f'https://chongqing.anjuke.com/sale/{code}/p{page - 1}/'
 
-        # 自适应延迟
+        # 远郊区县数据少，但反爬同样严格 — 自适应延迟
         if page > 1:
-            # 超保守延迟：每页30-60秒，避免触发反爬
             base_delay = random.uniform(30, 60)
             delay = base_delay * random.uniform(0.8, 1.2)
             print(f'  [{name}] 页间冷却 {delay:.1f}s ...')
@@ -343,7 +268,7 @@ def crawl_district(code, name, max_pages=100):
             house = parse_house_info(item)
             if house.get('title') and house.get('total_price', 0) > 0:
                 house['district'] = name
-                house['fingerprint'] = make_fingerprint(house)
+                house['fingerprint'] = make_anjuke_fingerprint(house)
                 all_data.append(house)
                 page_count += 1
 
@@ -351,13 +276,13 @@ def crawl_district(code, name, max_pages=100):
 
         if page_count > 0:
             pages_done.append(page)
-            save_checkpoint(code, pages_done)
+            save_checkpoint('anjuke_m', code, pages_done)
 
         # 每10页重建session
         if page % 10 == 0:
             session = refresh_session(session)
 
-        # 连续空页停止
+        # 空页停止
         if page_count == 0:
             if page == 1:
                 debug_path = os.path.join(OUTPUT_DIR, f'debug_anjuke_{code}_p1.html')
@@ -372,24 +297,29 @@ def crawl_district(code, name, max_pages=100):
     return all_data
 
 
-# ==================== CSV保存 ====================
-def save_csv(name, data):
+# ============================================================
+# CSV保存
+# ============================================================
+
+def save_district_csv(name, data):
     if not data:
         return
     out_path = os.path.join(OUTPUT_DIR, f'anjuke_m_{name}.csv')
-    with open(out_path, 'w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_KEYS, extrasaction='ignore')
-        writer.writeheader()
-        writer.writerows(data)
+    save_csv(data, out_path, ANJUKE_CSV_KEYS)
     print(f'  已保存: {out_path} ({len(data)} 条)')
 
 
-# ==================== 主流程 ====================
+# ============================================================
+# 主流程
+# ============================================================
+
 if __name__ == '__main__':
     print('=' * 60)
-    print('安居客缺失区县爬虫 v2 — PC站 + Cookie 直连')
+    print('安居客缺失区县爬虫 v3 — PC站 + Cookie 直连')
     print(f'目标: {len(MISSING_DISTRICTS)} 个远郊区县')
     print('注意: 免费HTTP代理不支持HTTPS穿透, 改用直接连接')
+    print(f'已用环境变量 ANJUKE_COOKIE: '
+          f'{"✓" if os.environ.get("ANJUKE_COOKIE") else "✗ (使用默认)"}')
     print('=' * 60)
 
     all_data = []
@@ -398,13 +328,13 @@ if __name__ == '__main__':
 
     for i, (code, name) in enumerate(MISSING_DISTRICTS):
         print(f'\n{"=" * 50}')
-        print(f'[{i+1}/{len(MISSING_DISTRICTS)}] 开始爬取: {name} ({code})')
+        print(f'[{i + 1}/{len(MISSING_DISTRICTS)}] 开始爬取: {name} ({code})')
         print(f'{"=" * 50}')
 
         try:
             data = crawl_district(code, name, max_pages=100)
             if data:
-                save_csv(name, data)
+                save_district_csv(name, data)
                 all_data.extend(data)
                 success += 1
                 print(f'  [OK] {name}: {len(data)} 条')
@@ -418,7 +348,6 @@ if __name__ == '__main__':
         except Exception as e:
             print(f'  [ERR] {name}: {type(e).__name__}: {e}')
             failed.append(name)
-            import traceback
             traceback.print_exc()
 
         # 区县间冷却
@@ -438,17 +367,6 @@ if __name__ == '__main__':
 
     # 去重合并
     if all_data:
-        seen = set()
-        unique = []
-        for h in all_data:
-            fp = h.get('fingerprint', '')
-            if fp and fp not in seen:
-                seen.add(fp)
-                unique.append(h)
-
         merged = os.path.join(OUTPUT_DIR, 'anjuke_m_missing_merged.csv')
-        with open(merged, 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.DictWriter(f, fieldnames=CSV_KEYS, extrasaction='ignore')
-            writer.writeheader()
-            writer.writerows(unique)
-        print(f'  去重合并: {len(unique)} 条 → {merged}')
+        unique, count = deduplicate_and_save(all_data, merged, ANJUKE_CSV_KEYS)
+        print(f'  去重合并: {count} 条 → {merged}')
