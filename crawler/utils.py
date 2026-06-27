@@ -70,13 +70,176 @@ _ANJUKE_COOKIE_DEFAULT = (
 
 _LIANJIA_COOKIE_DEFAULT = (
     "lianjia_uuid=84e647ad-44a3-4621-873d-fe484a1cfa17; "
-    "lianjia_token=2.001249871148bb2eed03e4ae205179712a; "
-    "lianjia_ssid=45e1b503-b277-4d0f-8d42-8be337a561ca"
+    "lianjia_token=2.00134251b449b0f84802ef78853196894d; "
+    "lianjia_token_secure=2.00134251b449b0f84802ef78853196894d; "
+    "lianjia_ssid=19d42f80-6852-44ee-a138-08721482eb90; "
+    "select_city=500000; "
+    "login_ucid=2000000542622736; "
+    "hip=Iozv8HMO6fOBEC0BqZU0u0gZGzDZcOzFD5zF7VsrqlGFydROEmup--npB1m6LTfZ_-sH1roojhhlttqFItAVi_FY65zpRj1T0g35VPTreqMU-7E8NCfDFaTnw8LSzARbgEorKBHTE1FCq-51RhJj7IitAYCzD2_H8LxXZ5gGM6jbbZoFO4yZKt13QEkGSh5HLLeLw7WailvV9ZMysMjfZkef2R4qIkVPlFYYq9epEO6fKIeTFjZ93iF5gBEYvn2sP3Ld1pt1l8yVkplHDkdD3_2vzD01uM7nz1ne"
 )
 
 ANJUKE_COOKIE = _env('ANJUKE_COOKIE', _ANJUKE_COOKIE_DEFAULT)
 LIANJIA_COOKIE = _env('LIANJIA_COOKIE', _LIANJIA_COOKIE_DEFAULT)
-PROXY_URL = _env('CRAWLER_PROXY_URL', '')
+PROXY_URL = _env('CRAWLER_PROXY_URL', '')           # 隧道代理（单地址）
+PROXY_LIST = []                                       # 私密代理池（多IP轮换）
+
+
+# ============================================================
+# 快代理 API 配置（私密代理提取）
+# ============================================================
+
+KDL_SECRET_ID = _env('KDL_SECRET_ID', 'ofpnwoplktv7km428dk1')
+KDL_SIGNATURE = _env('KDL_SIGNATURE', 'jr03zjctv11my32k685b30sl3y84trt4')
+KDL_USERNAME  = _env('KDL_USERNAME', 'd3133818967')
+KDL_PASSWORD  = _env('KDL_PASSWORD', 'dn2qhllv')
+KDL_PROXY_COUNT = int(_env('KDL_PROXY_COUNT', '20'))  # 默认提取20个
+KDL_API_URL = 'https://dps.kdlapi.com/api/getdps/'
+
+
+_PROXY_LAST_FETCH = 0
+_PROXY_FETCH_COOLDOWN = 120  # API冷却时间
+
+
+def _should_refetch():
+    global _PROXY_LAST_FETCH
+    if not PROXY_LIST:
+        return True
+    if time.time() - _PROXY_LAST_FETCH > _PROXY_FETCH_COOLDOWN:
+        return True
+    return False
+
+
+def fetch_proxies_from_api(count=None):
+    """从快代理API提取私密代理IP
+
+    Args:
+        count: 提取数量，默认 KDL_PROXY_COUNT
+
+    Returns:
+        list[str]: 代理URL列表 (格式: http://user:pass@ip:port)
+    """
+    if count is None:
+        count = KDL_PROXY_COUNT
+
+    params = {
+        'secret_id': KDL_SECRET_ID,
+        'signature': KDL_SIGNATURE,
+        'num': count,
+        'sep': '1',       # 换行分隔
+        'format': 'text',  # 纯文本返回 ip:port
+    }
+
+    try:
+        resp = requests.get(KDL_API_URL, params=params, timeout=15)
+        if resp.status_code != 200:
+            print(f'[proxy] API请求失败: HTTP {resp.status_code}')
+            return []
+
+        raw = resp.text.strip()
+        if not raw or 'ERROR' in raw:
+            print(f'[proxy] API返回异常: {raw[:200]}')
+            return []
+
+        # 解析 ip:port 列表（每行一个）
+        proxies = []
+        for line in raw.split('\n'):
+            line = line.strip()
+            if line and ':' in line and not line.startswith('#'):
+                # 格式: ip:port → 拼上用户名密码
+                proxies.append(f'http://{KDL_USERNAME}:{KDL_PASSWORD}@{line}')
+
+        return proxies
+
+    except Exception as e:
+        print(f'[代理API] 提取异常: {e}')
+        return []
+
+
+def _load_proxy_list():
+    """加载私密代理池
+
+    来源优先级：
+      1. 快代理API动态提取 → proxies.txt（自动缓存）
+      2. 环境变量 CRAWLER_PROXY_LIST
+      3. 模块目录下的 proxies.txt
+
+    支持的代理格式：
+      http://user:pass@ip:port    (推荐)
+      ip:port                      (快代理API直出，自动拼接用户名密码)
+
+    Returns:
+        list[str]: 代理URL列表
+    """
+    proxies = []
+
+    # 1) 快代理API动态提取（带冷却）
+    api_proxies = fetch_proxies_from_api() if _should_refetch() else []
+    if api_proxies:
+        # 缓存到文件（方便下次直接用）
+        txt_path = os.path.join(os.path.dirname(__file__), 'proxies.txt')
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(f'# 快代理私密代理池 ({len(api_proxies)}个) — 自动提取于 {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+            for p in api_proxies:
+                f.write(p + '\n')
+        proxies.extend(api_proxies)
+        global _PROXY_LAST_FETCH
+        _PROXY_LAST_FETCH = time.time()
+        print(f'[proxy] API提取 {len(api_proxies)} 个代理')
+
+    # 2) 环境变量（补充）
+    if not proxies:
+        env_val = os.environ.get('CRAWLER_PROXY_LIST', '')
+        if env_val:
+            proxies.extend(p.strip() for p in env_val.split(',') if p.strip())
+
+    # 3) proxies.txt 文件（补充/回退）
+    if not proxies:
+        txt_path = os.path.join(os.path.dirname(__file__), 'proxies.txt')
+        if os.path.exists(txt_path):
+            with open(txt_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        proxies.append(line)
+
+    # 统一转换为 http://user:pass@ip:port 格式
+    normalized = []
+    for p in proxies:
+        if p.startswith('http://') or p.startswith('https://'):
+            normalized.append(p)
+        else:
+            # ip:port 格式 → 拼接用户名密码
+            parts = p.split(':')
+            if len(parts) == 2:
+                normalized.append(f'http://{KDL_USERNAME}:{KDL_PASSWORD}@{p}')
+            elif len(parts) == 4:
+                ip, port, user, passwd = parts
+                normalized.append(f'http://{user}:{passwd}@{ip}:{port}')
+            else:
+                normalized.append(p)
+    return normalized
+
+
+def refresh_proxy_list():
+    """（重新）加载代理池，返回当前可用代理数量"""
+    global PROXY_LIST
+    PROXY_LIST = _load_proxy_list()
+    return len(PROXY_LIST)
+
+
+def get_proxy():
+    """随机获取一个代理URL（从私密代理池中）
+
+    Returns:
+        str | None: 代理URL，若未配置代理池则返回 None（走直连）
+    """
+    if not PROXY_LIST:
+        return None
+    return random.choice(PROXY_LIST)
+
+
+# 启动时自动加载
+refresh_proxy_list()
 
 
 def parse_cookie_string(cookie_string):
@@ -359,59 +522,82 @@ def safe_get(session, url, referer='', timeout=20, max_retries=3):
 # 代理请求（移动站用）
 # ============================================================
 
-def mobile_get(url, timeout=60, proxy_url=None, max_retries=4):
-    """移动站请求，自动轮换 UA。若提供代理则通过代理访问。
+def mobile_get(url, timeout=60, proxy_url=None, max_retries=5, no_cache=True):
+    """移动站请求，自动轮换 UA 和代理IP，失败时自动换代理重试。
 
     Args:
         url: 目标 URL
         timeout: 超时秒数
-        proxy_url: 代理地址，如 'http://user:pass@host:port'
-        max_retries: 最大重试次数
+        proxy_url: 指定代理地址
+        max_retries: 最大重试次数（每次重试会换一个新代理）
+        no_cache: 是否添加防缓存头
 
     Returns:
         requests.Response 或 None
     """
-    if proxy_url is None:
-        proxy_url = PROXY_URL
-
-    proxies = {'http': proxy_url, 'https': proxy_url} if proxy_url else None
-
     for attempt in range(max_retries):
+        # 选择代理：每次重试都换新代理
+        if proxy_url is not None:
+            chosen_proxy = proxy_url
+        else:
+            chosen_proxy = get_proxy()  # 从代理池随机取
+
+        proxies = {'http': chosen_proxy, 'https': chosen_proxy} if chosen_proxy else None
+
         try:
             headers = {
                 'User-Agent': random.choice(USER_AGENTS_MOBILE),
                 'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'zh-CN,zh;q=0.9',
                 'Connection': 'close',
             }
+            if no_cache:
+                headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                headers['Pragma'] = 'no-cache'
+
             resp = requests.get(
                 url, headers=headers,
                 proxies=proxies, timeout=timeout,
             )
-            resp.text  # 强制读取，捕获 ChunkedEncodingError
+            resp.text  # 强制读取，捕获解码错误
             return resp
-        except Exception:
-            time.sleep(random.uniform(3, 8))
+
+        except Exception as e:
+            err_name = type(e).__name__
+            if attempt < max_retries - 1:
+                wait = 2 + attempt * 3 + random.uniform(0, 3)
+                if attempt >= 2 and not proxy_url:
+                    # 第3次失败后尝试刷新代理池
+                    new_count = refresh_proxy_list()
+                    if new_count > 0:
+                        print(f'  [proxy] 刷新代理池: {new_count}个新IP')
+                time.sleep(wait)
+            else:
+                print(f'  [proxy] 请求失败({max_retries}次重试后): {err_name}')
+
     return None
 
 
-def desktop_get(url, timeout=50, proxy_url=None, max_retries=3):
-    """桌面站请求，自动轮换 UA。
+def desktop_get(url, timeout=50, proxy_url=None, max_retries=4):
+    """桌面站请求，自动轮换 UA 和代理IP。
 
     Args:
         url: 目标 URL
         timeout: 超时秒数
-        proxy_url: 代理地址
+        proxy_url: 代理地址（None=自动从代理池选，''=直连）
         max_retries: 最大重试次数
 
     Returns:
         requests.Response 或 None
     """
-    if proxy_url is None:
-        proxy_url = PROXY_URL
-
-    proxies = {'http': proxy_url, 'https': proxy_url} if proxy_url else None
-
     for attempt in range(max_retries):
+        if proxy_url is not None:
+            chosen_proxy = proxy_url
+        else:
+            chosen_proxy = get_proxy()
+
+        proxies = {'http': chosen_proxy, 'https': chosen_proxy} if chosen_proxy else None
+
         try:
             headers = {
                 'User-Agent': random.choice(USER_AGENTS_DESKTOP),
@@ -425,7 +611,7 @@ def desktop_get(url, timeout=50, proxy_url=None, max_retries=3):
             resp.text
             return resp
         except Exception:
-            time.sleep(2)
+            time.sleep(random.uniform(2, 5))
     return None
 
 
