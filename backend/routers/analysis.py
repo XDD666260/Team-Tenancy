@@ -44,7 +44,7 @@ def get_clustering():
 
 @router.get("/rules")
 def get_rules():
-    """关联规则结果"""
+    """关联规则结果（区县分析 + 关联规则摘要）"""
     results = query("""
         SELECT result_data, create_time
         FROM analysis_results
@@ -54,6 +54,24 @@ def get_rules():
     """)
     if not results:
         return APIResponse(code=404, message="暂无关联规则结果，请先运行分析模块")
+
+    import json
+    data = json.loads(results[0]['result_data']) if isinstance(results[0]['result_data'], str) else results[0]['result_data']
+    return APIResponse(data=data)
+
+
+@router.get("/association-rules")
+def get_association_rules():
+    """Apriori 关联规则详细结果（完整规则列表）"""
+    results = query("""
+        SELECT result_data, create_time
+        FROM analysis_results
+        WHERE analysis_type = 'association_rules'
+        ORDER BY create_time DESC
+        LIMIT 1
+    """)
+    if not results:
+        return APIResponse(code=404, message="暂无关联规则结果，请先运行 analysis/association.py")
 
     import json
     data = json.loads(results[0]['result_data']) if isinstance(results[0]['result_data'], str) else results[0]['result_data']

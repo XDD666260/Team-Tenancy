@@ -756,14 +756,15 @@ def analyze_district_distribution(df):
 # ============================================================
 # 7. 保存结果到数据库
 # ============================================================
-def save_results_to_db(prediction_results, importance_results, clustering_result, district_result):
+def save_results_to_db(prediction_results, importance_results, clustering_result, district_result, association_result=None):
     """将分析结果保存到 analysis_results 表"""
     print("\n" + "=" * 60)
-    print("[7/7] 保存结果到数据库...")
+    print("[保存] 保存结果到数据库...")
     print("=" * 60)
 
     # 清理旧结果
     execute("DELETE FROM analysis_results WHERE analysis_type IN ('prediction', 'clustering', 'rules')")
+    # 注意：association_rules 类型由 association.py 独立管理，不在此清理
 
     # 保存预测结果
     execute(
@@ -798,15 +799,25 @@ def save_results_to_db(prediction_results, importance_results, clustering_result
     )
     print("  [OK] 聚类结果已保存")
 
-    # 保存关联规则/区县分析结果
+    # 保存区县分析 + 关联规则结果
+    rules_data = {
+        "district_analysis": district_result,
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    if association_result:
+        # 合并关联规则结果（不覆盖 association.py 已写入的数据，仅追加区县分析）
+        rules_data["association"] = {
+            "total_rules": len(association_result.get("rules", [])),
+            "conclusions": association_result.get("conclusions", ""),
+        }
+        print("  [OK] 区县分析 + 关联规则摘要已保存")
+    else:
+        print("  [OK] 区县分析已保存")
+
     execute(
         "INSERT INTO analysis_results (analysis_type, result_data) VALUES (%s, %s)",
-        ("rules", json.dumps({
-            "district_analysis": district_result,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }, ensure_ascii=False)),
+        ("rules", json.dumps(rules_data, ensure_ascii=False)),
     )
-    print("  [OK] 区县分析已保存")
 
     print("  所有分析结果已写入 analysis_results 表")
 
@@ -839,8 +850,24 @@ def main():
     # 6. 区县分析
     district_result = analyze_district_distribution(df)
 
-    # 7. 保存到数据库
-    save_results_to_db(pred_results, importance_results, clustering_result, district_result)
+    # 7. 关联规则挖掘（Apriori）
+    print("\n\n")
+    try:
+        from association import run_association as run_ar
+        association_result = run_ar(
+            min_support=0.02,
+            min_confidence=0.4,
+            max_len=4,
+            top_n=50,
+        )
+    except Exception as e:
+        print(f"  ⚠️ 关联规则分析异常: {e}")
+        import traceback
+        traceback.print_exc()
+        association_result = None
+
+    # 8. 保存预测+聚类+区县+关联规则结果到数据库（统一写入，避免覆盖）
+    save_results_to_db(pred_results, importance_results, clustering_result, district_result, association_result)
 
     # 完成
     elapsed = (datetime.now() - start_time).total_seconds()
@@ -857,12 +884,16 @@ def main():
     print(f"  聚类结果图: {CHART_DIR}/clustering_*.png")
     print(f"  区县排名图: {CHART_DIR}/district_price_ranking.png")
     print(f"  特征对比图: {CHART_DIR}/feature_importance_compare_*.png")
+    print(f"  关联规则图: {CHART_DIR}/association_*.png")
+    if association_result:
+        print(f"  关联规则: {len(association_result.get('rules', []))} 条")
 
     return {
         "prediction": pred_results,
         "importance": importance_results,
         "clustering": clustering_result,
         "district": district_result,
+        "association": association_result,
         "elapsed": elapsed,
     }
 

@@ -53,47 +53,68 @@ def merge_and_dedupe():
     print('数据合并去重')
     print('=' * 60)
 
-    # ---- 1. 按区县择优加载 ----
+    # ---- 1. 加载所有数据源 ----
     all_rows = []
-    stats = {'rich': 0, 'fast': 0, 'total_loaded': 0}
+    stats = {'anjuke': 0, 'lianjia': 0, 'total_loaded': 0}
 
     # 收集所有区县名
     districts_seen = set()
-    for pattern in ['anjuke_rich_*.csv', 'anjuke_fast_*.csv']:
+
+    # 安居客：anjuke_rich_*.csv, anjuke_fast_*.csv, anjuke_m_*.csv (旧数据)
+    for pattern in ['anjuke_rich_*.csv', 'anjuke_fast_*.csv', 'anjuke_m_*.csv']:
         for fpath in sorted(glob.glob(os.path.join(OUTPUT_DIR, pattern))):
             fname = os.path.basename(fpath)
-            # 提取区县名
-            for prefix in ['anjuke_rich_', 'anjuke_fast_']:
+            for prefix in ['anjuke_rich_', 'anjuke_fast_', 'anjuke_m_']:
                 if fname.startswith(prefix):
-                    districts_seen.add(fname.replace(prefix, '').replace('.csv', ''))
+                    districts_seen.add(('anjuke', fname.replace(prefix, '').replace('.csv', '')))
                     break
 
-    print(f'\n发现 {len(districts_seen)} 个区县')
+    # 链家
+    for fpath in sorted(glob.glob(os.path.join(OUTPUT_DIR, 'lianjia_*.csv'))):
+        fname = os.path.basename(fpath)
+        if 'lianjia_all' in fname:
+            continue
+        districts_seen.add(('lianjia', fname.replace('lianjia_', '').replace('.csv', '')))
 
-    for district in sorted(districts_seen):
-        rich_path = os.path.join(OUTPUT_DIR, f'anjuke_rich_{district}.csv')
-        fast_path = os.path.join(OUTPUT_DIR, f'anjuke_fast_{district}.csv')
+    print(f'\n发现 {len(districts_seen)} 个数据源')
 
-        # 优先用 rich（质量版），回退到 fast（基础版）
-        if os.path.exists(rich_path):
-            rows = load_csv(rich_path)
-            source = 'rich'
-        elif os.path.exists(fast_path):
-            rows = load_csv(fast_path)
-            source = 'fast'
+    for source_type, district in sorted(districts_seen, key=lambda x: (x[0], x[1])):
+        if source_type == 'lianjia':
+            paths = [os.path.join(OUTPUT_DIR, f'lianjia_{district}.csv')]
         else:
+            paths = [
+                os.path.join(OUTPUT_DIR, f'anjuke_rich_{district}.csv'),
+                os.path.join(OUTPUT_DIR, f'anjuke_fast_{district}.csv'),
+                os.path.join(OUTPUT_DIR, f'anjuke_m_{district}.csv'),
+            ]
+
+        # 加载所有可用文件（新旧数据合并）
+        district_rows = []
+        labels = []
+        for p in paths:
+            if os.path.exists(p):
+                rows = load_csv(p)
+                if rows:
+                    for r in rows:
+                        if not r.get('source', ''):
+                            r['source'] = source_type
+                    district_rows.extend(rows)
+                    labels.append(os.path.basename(p).replace('.csv', ''))
+
+        if not district_rows:
             continue
 
-        if rows:
-            all_rows.extend(rows)
-            stats[source] += len(rows)
-            lng_ok = sum(1 for r in rows if safe_float(r.get('lng', 0)) > 0)
-            dec_ok = sum(1 for r in rows if r.get('decoration', ''))
-            print(f'  {district}: {len(rows)}条 ({source}), '
-                  f'坐标{lng_ok}, 装修{dec_ok}')
+        all_rows.extend(district_rows)
+        stats[source_type] += len(district_rows)
+        lng_ok = sum(1 for r in district_rows if safe_float(r.get('lng', 0)) > 0)
+        dec_ok = sum(1 for r in district_rows if r.get('decoration', ''))
+        label = '+'.join(labels)[:60]
+        print(f'  {district}: {len(district_rows)}条 ({label}), 坐标{lng_ok}, 装修{dec_ok}')
 
     stats['total_loaded'] = len(all_rows)
-    print(f'\n加载总计: {len(all_rows)}条 (rich={stats["rich"]}, fast={stats["fast"]})')
+    aj_count = stats.get('anjuke', 0)
+    lj_count = stats.get('lianjia', 0)
+    print(f'\n加载总计: {len(all_rows)}条 (anjuke={aj_count}, lianjia={lj_count})')
 
     if not all_rows:
         print('无数据可合并')

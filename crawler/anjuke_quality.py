@@ -33,9 +33,10 @@ from crawler.utils import (
     make_anjuke_fingerprint,
 )
 
-QUALITY_WORKERS = 10              # 详情页并行线程数
-DETAIL_RETRIES = 3                # 详情页请求重试次数
+QUALITY_WORKERS = 4               # 详情页并行线程数（降低避免冲垮代理）
+DETAIL_RETRIES = 2                # 详情页请求重试次数
 IDLE_SCAN_INTERVAL = 15           # 扫描新文件的间隔（秒）
+DETAIL_DELAY = (2, 5)             # 详情请求间随机延迟(秒)
 WRITE_LOCK = threading.Lock()     # CSV写入锁
 
 
@@ -55,7 +56,7 @@ def fetch_desktop_detail(hid):
         try:
             resp = desktop_get(
                 f'https://chongqing.anjuke.com/prop/view/S{hid}',
-                proxy_url=get_proxy()
+                proxy_url=None  # 让desktop_get自己每次重试换代理
             )
             if not resp or resp.status_code != 200:
                 continue
@@ -95,7 +96,7 @@ def fetch_mobile_detail(hid):
         try:
             resp = mobile_get(
                 f'https://m.anjuke.com/cq/sale/S{hid}/',
-                proxy_url=get_proxy()
+                proxy_url=None  # 让mobile_get每次重试自己换代理
             )
             if not resp or resp.status_code != 200:
                 continue
@@ -165,6 +166,9 @@ def enrich_single_house(house):
     hid = house.get('id', '') or house.get('source_id', '')
     if not hid:
         return house, 0
+
+    # 随机延迟，降低代理压力
+    time.sleep(random.uniform(*DETAIL_DELAY))
 
     filled = 0
     need_desktop = (float(house.get('lng', 0) or 0) == 0)
