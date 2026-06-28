@@ -63,6 +63,8 @@ def get_district_detail(name: str):
 ---
 
 ## 3. 系统架构图（需绘制）
+https://my.feishu.cn/wiki/NNDXwP18DiEoQQkTnzIc0uRrnbf
+飞书第5个
 
 > 使用 draw.io / ProcessOn / Visio 绘制，建议导出为PNG插入文档第3章"系统设计"。
 
@@ -98,6 +100,8 @@ def get_district_detail(name: str):
 
 ### 截图1：FastAPI Swagger 自动文档页
 
+chongqing-house-analysis/docs/截图/API文档页.png
+
 **操作步骤**：
 1. 启动后端服务：
    ```bash
@@ -113,6 +117,8 @@ def get_district_detail(name: str):
 4. 可选：再截一张 `http://localhost:8000/redoc` 的备用文档页
 
 ### 截图2：API 接口测试（浏览器直接访问）
+接口测试所有图片都在截图文件夹下面对应
+![首页总览](API关联规则overview.png)
 
 **操作步骤**：
 1. 确保后端服务已启动（步骤同上）
@@ -124,6 +130,8 @@ def get_district_detail(name: str):
 3. 截取浏览器窗口，展示完整的JSON响应
 
 ### 截图3：POST /api/update 测试
+查看截图文件夹
+API截图3
 
 **操作步骤**：
 1. 打开另一个终端，执行：
