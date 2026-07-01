@@ -1,10 +1,33 @@
 """房源列表 API 路由"""
+import json
 from typing import Optional
 from fastapi import APIRouter, Query
+from fastapi.responses import Response
 from ..database import query, query_one
 from ..schemas import APIResponse
 
 router = APIRouter(prefix="/api", tags=["houses"])
+
+# 房源查询中涉及的字段
+HOUSE_FIELDS = """id, title, district, community, address,
+    total_price, unit_price, area, layout,
+    rooms, halls, bathrooms,
+    floor_desc, floor_type, total_floors,
+    orientation, decoration, build_year,
+    lng, lat, source, image_urls"""
+
+
+def _parse_image_urls(row):
+    """将 image_urls 从 JSON 字符串转为列表"""
+    if row and row.get('image_urls'):
+        try:
+            if isinstance(row['image_urls'], str):
+                row['image_urls'] = json.loads(row['image_urls'])
+        except (json.JSONDecodeError, TypeError):
+            row['image_urls'] = []
+    elif row and not row.get('image_urls'):
+        row['image_urls'] = []
+    return row
 
 
 @router.get("/houses")
@@ -67,18 +90,14 @@ def get_houses(
     # 分页数据
     offset = (page - 1) * page_size
     data_sql = f"""
-        SELECT id, title, district, community, address,
-               total_price, unit_price, area, layout,
-               rooms, halls, bathrooms,
-               floor_desc, floor_type, total_floors,
-               orientation, decoration, build_year,
-               lng, lat, source
+        SELECT {HOUSE_FIELDS}
         FROM houses
         WHERE {where_clause}
         ORDER BY id
         LIMIT %s OFFSET %s
     """
     rows = query(data_sql, params + [page_size, offset])
+    rows = [_parse_image_urls(r) for r in rows]
 
     return APIResponse(data=list(rows), total=total)
 
@@ -86,17 +105,69 @@ def get_houses(
 @router.get("/houses/{house_id}")
 def get_house_detail(house_id: int):
     """单条房源详情"""
-    row = query_one("""
-        SELECT id, title, district, community, address,
-               total_price, unit_price, area, layout,
-               rooms, halls, bathrooms,
-               floor_desc, floor_type, total_floors,
-               orientation, decoration, build_year,
-               lng, lat, source
+    row = query_one(f"""
+        SELECT {HOUSE_FIELDS}
         FROM houses WHERE id = %s
     """, (house_id,))
 
     if not row:
         return APIResponse(code=404, message="房源不存在")
 
-    return APIResponse(data=row)
+    return APIResponse(data=_parse_image_urls(row))
+
+
+# ============================================================
+# 占位图片生成
+# ============================================================
+
+# 不同索引对应不同色系（模拟客厅/卧室/外观）
+_PLACEHOLDER_COLORS = [
+    {"bg": "#E3F2FD", "fg": "#1565C0", "label": "客厅"},   # 蓝
+    {"bg": "#F3E5F5", "fg": "#7B1FA2", "label": "卧室"},   # 紫
+    {"bg": "#E8F5E9", "fg": "#2E7D32", "label": "外观"},   # 绿
+]
+
+
+def _svg_placeholder(text_lines, bg_color, fg_color, label):
+    """生成一个简单的房源占位 SVG 图片"""
+    lines_svg = ""
+    y = 100
+    for line in text_lines:
+        lines_svg += f'<text x="200" y="{y}" text-anchor="middle" font-size="22" fill="{fg_color}" font-family="sans-serif">{line}</text>\n'
+        y += 32
+
+    tag_svg = f'<rect x="10" y="10" width="60" height="28" rx="14" fill="{fg_color}" opacity="0.85"/>\n'
+    tag_svg += f'<text x="40" y="30" text-anchor="middle" font-size="13" fill="white" font-family="sans-serif" font-weight="bold">{label}</text>\n'
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="{bg_color}"/>
+  <rect x="140" y="40" width="120" height="30" rx="15" fill="{fg_color}" opacity="0.3"/>
+  {tag_svg}
+  {lines_svg}
+  <rect x="170" y="260" width="60" height="4" rx="2" fill="{fg_color}" opacity="0.4"/>
+</svg>"""
+
+
+@router.get("/images/placeholder/{house_id}/{index}")
+def get_placeholder_image(house_id: int, index: int):
+    """生成房源占位图片（SVG），根据 index 返回不同色系"""
+    row = query_one("""
+        SELECT title, district, total_price, unit_price, area, rooms, layout
+        FROM houses WHERE id = %s
+    """, (house_id,))
+
+    if not row:
+        return Response(content="Not Found", status_code=404)
+
+    idx = max(0, min(index, len(_PLACEHOLDER_COLORS) - 1))
+    colors = _PLACEHOLDER_COLORS[idx]
+
+    price_str = f"{row['total_price']}万"
+    text_lines = [
+        row.get('title', '重庆二手房')[:18],
+        f"{row.get('district', '')} | {row.get('layout', '')} | {row.get('area', '')}㎡",
+        f"单价 {row.get('unit_price', '')}元/㎡ | 总价 {price_str}",
+    ]
+
+    svg = _svg_placeholder(text_lines, colors["bg"], colors["fg"], colors["label"])
+    return Response(content=svg, media_type="image/svg+xml")

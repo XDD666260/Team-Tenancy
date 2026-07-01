@@ -2,11 +2,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import stats, houses, analysis, update
+from decimal import Decimal
+import json
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """自定义 JSON 编码器：将 Decimal 转为 float，避免序列化为字符串"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
+def jsonable_encoder_with_decimal(obj, **kwargs):
+    """替代 fastapi.encoders.jsonable_encoder，确保 Decimal → float"""
+    if isinstance(obj, dict):
+        return {k: jsonable_encoder_with_decimal(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [jsonable_encoder_with_decimal(v) for v in obj]
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
 
 app = FastAPI(
     title="重庆二手房数据 API",
     description="为 Android App 提供数据查询、统计和分析接口",
     version="1.0.0",
+    json_encoders={Decimal: float},  # 关键：告诉 FastAPI 把 Decimal 当 float 处理
 )
 
 # CORS — 允许 Android 模拟器和真机跨域访问

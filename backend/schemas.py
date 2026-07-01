@@ -34,3 +34,4 @@ class HouseItem(BaseModel):
     lng: Optional[float] = None
     lat: Optional[float] = None
     source: Optional[str] = None
+    image_urls: Optional[Any] = None  # JSON 数组字符串，前端可直接解析
