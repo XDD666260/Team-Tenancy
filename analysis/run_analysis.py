@@ -642,7 +642,7 @@ def run_clustering(df):
     all_top_districts = sorted(all_top_districts)
     x = np.arange(n_clusters)
     width = 0.12
-    district_colors = plt.cm.tab10(np.linspace(0, 1, len(all_top_districts)))
+    district_colors = plt.cm.tab20(np.linspace(0, 1, len(all_top_districts)))
 
     for i, (district, color) in enumerate(zip(all_top_districts, district_colors)):
         vals = [cluster_district[c].get(district, 0) for c in range(n_clusters)]
