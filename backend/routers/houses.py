@@ -42,6 +42,8 @@ def get_houses(
     decoration: Optional[str] = Query(None, description="装修"),
     orientation: Optional[str] = Query(None, description="朝向"),
     source: Optional[str] = Query(None, description="数据来源: lianjia/anjuke"),
+    has_coords: Optional[bool] = Query(None, description="仅显示有经纬度的房源（地图模式）"),
+    has_images: Optional[bool] = Query(None, description="仅显示有真实图片的房源（CDN地址，非占位图）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=50, description="每页条数"),
 ):
@@ -79,6 +81,12 @@ def get_houses(
     if source:
         conditions.append("source = %s")
         params.append(source)
+    if has_coords:
+        conditions.append("lng > 0 AND lat > 0")
+    if has_images:
+        # 真实图片是 CDN 地址（含 http），占位图是 /api/ 开头
+        # %% 是因为 pymysql 的 mogrify 把 % 当作参数占位符
+        conditions.append("image_urls IS NOT NULL AND image_urls != '' AND image_urls LIKE '%%http%%'")
 
     where_clause = " AND ".join(conditions)
 

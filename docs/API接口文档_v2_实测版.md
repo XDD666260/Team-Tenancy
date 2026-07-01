@@ -160,6 +160,8 @@ data class DistrictStat(
 | `decoration` | String | `精装` | 装修 |
 | `orientation` | String | `南` | 朝向 |
 | `source` | String | `lianjia` | lianjia / anjuke |
+| `has_coords` | Bool | `true` | 仅返回有经纬度的房源（地图模式），13,199条 |
+| `has_images` | Bool | `true` | 仅返回有真实CDN图片的房源，591条 |
 | `page` | Int | `1` | 页码（默认1） |
 | `page_size` | Int | `20` | 每页条数（默认20，最大50） |
 
@@ -711,5 +713,6 @@ when (response.code) {
 
 | 日期 | 变更 |
 |------|------|
+| 7/1 | 新增 `image_urls` 字段、`/api/images/placeholder/{id}/{index}` 占位图接口、`has_coords`/`has_images` 筛选参数 |
 | 7/1 | **v2 实测版**：全部接口用真实响应重写；修复 Decimal→float；分析接口结构按实际修正；新增 quick-stats/update-status/update-history |
 | 6/12 | v1 初版 |
