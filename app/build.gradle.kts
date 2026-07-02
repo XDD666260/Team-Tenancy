@@ -9,6 +9,10 @@ android {
             minorApiLevel = 1
         }
     }
+    buildFeatures{
+        dataBinding=true
+        viewBinding=true
+    }
 
     defaultConfig {
         applicationId = "com.example.tenancy"
@@ -36,11 +40,40 @@ android {
 }
 
 dependencies {
+    // Retrofit + OkHttp + Gson
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.gson)
+
+    // Coroutines
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.android)
+
+    // ViewModel + LiveData
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.lifecycle.livedata)
+
+    // Navigation
+    implementation(libs.navigation.fragment)
+    implementation(libs.navigation.ui)
+
+    // Charts
+    implementation(libs.mpandroidchart)
+
+    // Base
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.viewbinding)
+
+    // Google Play Services - Location
+    implementation(libs.playservices.location)
+
+    // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
