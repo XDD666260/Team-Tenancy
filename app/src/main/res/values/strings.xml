@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Tenancy</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_map">地图可视化</string>
+    <string name="nav_chart">图表分析</string>
+    <string name="nav_filter">筛选查询</string>
+    <string name="nav_about">About Us</string>
+    <string name="nav_feedback">Send Feedbacks</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="navigation_drawer_open">Open navigation menu</string>
+    <string name="navigation_drawer_close">Close navigation menu</string>
+
+    <!-- Home Screen -->
+    <string name="current_location">Current Location</string>
+    <string name="locating">Locating…</string>
+    <string name="location_unavailable">Location unavailable</string>
+    <string name="location_icon">Location icon</string>
+    <string name="refresh_location">Refresh location</string>
+    <string name="nearby_houses">Nearby Houses</string>
+    <string name="recommend_houses">Recommended Houses</string>
+    <string name="view_all">View All →</string>
+    <string name="distance_format">%1$s away</string>
+    <string name="price_unit_per_month">¥%1$s/month</string>
+    <string name="price_unit_wan">¥%1$.0f万</string>
+    <string name="area_format">%1$sm²</string>
+
+    <!-- Map Screen -->
+    <string name="map_stats_loading">加载中…</string>
+    <string name="map_stats_format">共 %1$d 套房源 / %2$d 条坐标</string>
+    <string name="map_no_coords">暂无坐标房源数据</string>
+    <string name="map_all_district">全部</string>
+    <string name="map_hotspot_label">热力</string>
+    <string name="map_marker_label">标注</string>
+    <string name="map_heatmap_title">房源热力图</string>
+    <string name="map_price_format">¥%1$s</string>
+</resources>

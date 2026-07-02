@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#2196F3</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="textPrimary">#FF1A1A1A</color>
+    <color name="textSecondary">#FF666666</color>
+    <color name="textHint">#FF999999</color>
+    <color name="dividerColor">#FFEEEEEE</color>
+    <color name="bgLight">#FFF8F8F8</color>
+    <color name="nearbyTag">#FF4CAF50</color>
+    <color name="recommendTag">#FFFF9800</color>
+    <color name="priceColor">#FFE53935</color>
+    <color name="locationBarBg">#FFFFFFFF</color>
+    <color name="cardBg">#FFFFFFFF</color>
+</resources>
