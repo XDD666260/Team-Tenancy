@@ -4,9 +4,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function fetchAPI<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      signal: AbortSignal.timeout(8000),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${API_BASE}${path}`, { signal: controller.signal });
+    clearTimeout(timer);
     if (!res.ok) return null;
     const json = await res.json();
     return json.data as T;

@@ -31,7 +31,7 @@ export default function ClusteringSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
 
-  const clusters = data.cluster_stats;
+  const clusters = data?.cluster_stats || [];
 
   // 为比较图准备数据
   const compareData = COMPARE_DIMS.map((dim) => {

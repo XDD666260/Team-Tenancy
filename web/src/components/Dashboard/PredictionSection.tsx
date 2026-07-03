@@ -36,7 +36,8 @@ export default function PredictionSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
 
-  const { models, feature_importance: fi } = data;
+  const models = data?.models || {};
+  const fi = data?.feature_importance || {};
 
   // RF & GB 总价版特征重要性对比
   const rfImportance = fi["RandomForest_total"] || [];

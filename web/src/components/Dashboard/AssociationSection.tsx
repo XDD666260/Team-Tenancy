@@ -27,7 +27,7 @@ export default function AssociationSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
 
-  const rules = data.rules.slice(0, 10);
+  const rules = (data?.rules || []).slice(0, 10);
 
   useEffect(() => {
     if (initialized.current) return;
