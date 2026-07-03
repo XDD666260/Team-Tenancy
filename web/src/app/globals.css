@@ -107,3 +107,9 @@ html.lenis, html.lenis body { height: auto; }
   animation: fadeUp 0.7s ease forwards;
   opacity: 0;
 }
+
+/* [FIX] Hero 向下箭头 bounce */
+@keyframes heroBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
