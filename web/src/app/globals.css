@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Design Token — 重庆房价洞察
+   ============================================ */
+
+:root {
+  /* 主色调 */
+  --color-primary: #2b4b82;
+  --color-primary-rgb: 43, 75, 130;
+
+  /* 辅助深色 */
+  --color-deep-purple: #392752;
+  --color-deep-purple-rgb: 57, 39, 82;
+
+  /* 脏紫色系 — 卡片 / 强调 */
+  --color-dust-purple: #6e426a;
+  --color-dust-purple-mid: #a0637f;
+  --color-dust-purple-light: #ce8992;
+
+  /* 点缀色 */
+  --color-pink-light: #f7b4a7;
+  --color-pink-soft: #f0abc1;
+  --color-mint: #94ddde;
+
+  /* 背景 & 文字 */
+  --color-bg: #1a1a2e;
+  --color-bg-rgb: 26, 26, 46;
+  --color-text: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.65);
+  --color-text-hint: rgba(255, 255, 255, 0.4);
+
+  /* 毛玻璃 */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-backdrop: blur(20px) saturate(180%);
+}
+
+/* ============================================
+   全局基础
+   ============================================ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", "Arial",
+    sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============================================
+   Lenis 平滑滚动覆盖
+   ============================================ */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* ============================================
+   工具类：毛玻璃卡片
+   ============================================ */
+@layer components {
+  .glass-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop);
+    -webkit-backdrop-filter: var(--glass-backdrop);
+    border-radius: 16px;
+  }
+}

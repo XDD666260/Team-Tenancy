@@ -1,0 +1,11 @@
+# 网站视觉 & 交互规范
+- 风格：高级极简 + 科技感 + 艺术感
+- 主色：#2b4b82（深蓝）
+- 辅助色：#392752 #6e426a #a0637f #ce8992 #f7b4a7 #f0abc1 #94ddde
+- 背景：深蓝到深紫渐变，卡片半透明磨砂
+- 字体：无衬线，字重偏细，中文优先 PingFang SC / Noto Sans SC
+- 交互：
+  - 苹果官网级平滑滚动（lenis / locomotive-scroll）
+  - GSAP ScrollTrigger 区域吸顶 / 数字递增动画
+  - hover 微动效（scale 1.02 + glow）
+- 图表：ECharts / Recharts，半透明填充 + 细线网格
