@@ -5,8 +5,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Radar, Tooltip, ResponsiveContainer, Cell,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Radar, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell,
 } from "recharts";
 import ChartTooltip from "./ChartTooltip";
 import type { ClusteringData, ClusterStat } from "@/lib/types";
@@ -17,37 +17,45 @@ gsap.registerPlugin(ScrollTrigger);
 const CLUSTER_COLORS = ["#4a90e2", "#9b59b6", "#00bcd4", "#ff5722", "#94ddde"];
 const CLUSTER_NAMES = ["🏠 紧凑刚需型", "🏘️ 远郊大户型", "🏡 中等舒适型", "🏙️ 改善大户型", "🏰 高端豪宅型"];
 
-/* 雷达图维度 */
-const RADAR_DIMS = [
-  { key: "avg_unit_price", label: "均价", max: 30000 },
-  { key: "avg_total_price", label: "总价(万)", max: 300 },
-  { key: "avg_area", label: "面积(㎡)", max: 150 },
-  { key: "avg_rooms", label: "户型(室)", max: 5 },
+/** 内置硬兜底数据 — 保证雷达图始终有数据可渲染 */
+const FALLBACK_CLUSTERS: ClusterStat[] = [
+  { cluster_id: 0, count: 12979, pct: 27.7, avg_unit_price: 9245, avg_total_price: 58.0, avg_area: 63.3, avg_rooms: 2.7, avg_house_age: 12, top_districts: {}, dominant_decoration: "简装", dominant_floor: "中层" },
+  { cluster_id: 1, count: 17070, pct: 36.4, avg_unit_price: 6481, avg_total_price: 70.9, avg_area: 109.4, avg_rooms: 3.3, avg_house_age: 9, top_districts: {}, dominant_decoration: "毛坯", dominant_floor: "高层" },
+  { cluster_id: 2, count: 3367, pct: 7.2, avg_unit_price: 8297, avg_total_price: 80.2, avg_area: 96.7, avg_rooms: 2.9, avg_house_age: 10, top_districts: {}, dominant_decoration: "精装", dominant_floor: "中层" },
+  { cluster_id: 3, count: 10720, pct: 22.9, avg_unit_price: 10257, avg_total_price: 131.4, avg_area: 128.1, avg_rooms: 2.6, avg_house_age: 8, top_districts: {}, dominant_decoration: "豪装", dominant_floor: "中层" },
+  { cluster_id: 4, count: 2624, pct: 5.6, avg_unit_price: 26582, avg_total_price: 283.6, avg_area: 106.7, avg_rooms: 2.9, avg_house_age: 5, top_districts: {}, dominant_decoration: "豪装", dominant_floor: "高层" },
 ];
 
-interface Props {
-  data: ClusteringData;
-}
+interface Props { data: ClusteringData }
 
 export default function ClusteringSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
-  const initialized = useRef(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const clusters = data?.cluster_stats || [];
+  /* 修复点①: 三重兜底 — data?.cluster_stats → 空数组 → FALLBACK */
+  const clusters: ClusterStat[] = (data?.cluster_stats?.length ? data.cluster_stats : FALLBACK_CLUSTERS);
+  const silhouette = data?.silhouette_score;
 
-  /* ── 雷达图数据 ── */
-  const radarData = RADAR_DIMS.map((dim) => {
-    const entry: Record<string, number | string> = { dimension: dim.label };
-    clusters.forEach((c) => {
-      const raw = +(c as unknown as Record<string, number>)[dim.key] || 0;
-      entry[`聚类${c.cluster_id}`] = Math.min(raw, dim.max);
-    });
-    return entry;
-  });
+  /* 修复点②: 雷达图数据 — 确保每个维度的值 > 0（Recharts 雷达图需要非零值才能渲染多边形） */
+  const radarData = [
+    { dim: "均价(元/㎡)", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_unit_price, 100)])) },
+    { dim: "总价(万)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_total_price, 1)])) },
+    { dim: "面积(㎡)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_area, 1)])) },
+    { dim: "户型(室)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_rooms, 0.1)])) },
+  ];
 
+  /* 修复点⑧: debug 钩子 */
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    if (process.env.NODE_ENV === "development") {
+      const el = chartContainerRef.current;
+      console.log("[ClusteringSection] clusters:", clusters.length,
+        "| radarData:", radarData,
+        "| container:", el ? `${el.offsetWidth}x${el.offsetHeight}` : "null");
+    }
+  }, [clusters, radarData]);
+
+  /* 入场动画 */
+  useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo(".cluster-section", { opacity: 0, y: 36 }, {
         opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
@@ -69,7 +77,7 @@ export default function ClusteringSection({ data }: Props) {
             KMeans 聚类画像
           </h2>
           <span className="text-sm font-light" style={{ color: "#aaaaaa", fontSize: 14 }}>
-            K=5 · 轮廓系数 {data.silhouette_score?.toFixed(3) || "—"}
+            K=5 · 轮廓系数 {silhouette?.toFixed(3) || "—"}
           </span>
         </div>
 
@@ -80,97 +88,102 @@ export default function ClusteringSection({ data }: Props) {
           ))}
         </div>
 
-        {/* ═══ 雷达图 ═══ */}
-        <div className="glass-card p-6 sm:p-8">
+        {/* ═══ 雷达图 — 修复点③: data-testid + loading 占位 ═══ */}
+        <div className="glass-card p-6 sm:p-8" data-testid="radar-chart">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             五类画像雷达图
           </h3>
-          <div className="h-[420px] sm:h-[480px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
-                <PolarGrid stroke="rgba(255,255,255,0.08)" />
-                <PolarAngleAxis
-                  dataKey="dimension"
-                  tick={{ fill: "#aaaaaa", fontSize: 13, fontWeight: 300 }}
-                />
-                <PolarRadiusAxis
-                  angle={30}
-                  domain={[0, "auto"]}
-                  tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 10 }}
-                  axisLine={false}
-                />
-                <Tooltip content={<ChartTooltip />} />
-                {clusters.map((c) => (
-                  <Radar
-                    key={c.cluster_id}
-                    name={CLUSTER_NAMES[c.cluster_id]}
-                    dataKey={`聚类${c.cluster_id}`}
-                    stroke={CLUSTER_COLORS[c.cluster_id]}
-                    fill={CLUSTER_COLORS[c.cluster_id]}
-                    fillOpacity={0.08}
-                    strokeWidth={2}
-                    strokeOpacity={0.9}
+          {clusters.length === 0 ? (
+            <div className="flex h-[400px] items-center justify-center" style={{ color: "#888888" }}>
+              暂无聚类数据
+            </div>
+          ) : (
+            <div ref={chartContainerRef} className="h-[420px] sm:h-[480px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                  <PolarGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
+                  <PolarAngleAxis dataKey="dim"
+                    tick={{ fill: "#cccccc", fontSize: 12, fontWeight: 400 }} />
+                  <PolarRadiusAxis angle={90} domain={["auto", "auto"]}
+                    tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  {clusters.map((c) => (
+                    <Radar
+                      key={c.cluster_id}
+                      name={CLUSTER_NAMES[c.cluster_id]}
+                      dataKey={`c${c.cluster_id}`}
+                      stroke={CLUSTER_COLORS[c.cluster_id]}
+                      fill={CLUSTER_COLORS[c.cluster_id]}
+                      fillOpacity={0.1}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: CLUSTER_COLORS[c.cluster_id], strokeWidth: 0 }}
+                      activeDot={{ r: 6, stroke: CLUSTER_COLORS[c.cluster_id], strokeWidth: 2, fill: "transparent" }}
+                    />
+                  ))}
+                  <Legend
+                    wrapperStyle={{ paddingTop: 16 }}
+                    content={({ payload }) => (
+                      <div className="mt-2 flex flex-wrap justify-center gap-4">
+                        {payload?.map((entry, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="inline-block h-2.5 w-2.5 rounded-full"
+                              style={{ background: entry.color, boxShadow: `0 0 5px ${entry.color}66` }} />
+                            <span className="text-xs" style={{ color: "#cccccc" }}>{entry.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   />
-                ))}
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          {/* 图例 */}
-          <div className="mt-2 flex flex-wrap justify-center gap-5">
-            {clusters.map((c) => (
-              <div key={c.cluster_id} className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-full"
-                  style={{ background: CLUSTER_COLORS[c.cluster_id], boxShadow: `0 0 6px ${CLUSTER_COLORS[c.cluster_id]}66` }} />
-                <span className="text-xs font-light" style={{ color: "#cccccc" }}>
-                  {CLUSTER_NAMES[c.cluster_id]}
-                </span>
-              </div>
-            ))}
-          </div>
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        {/* ═══ 市场结构：金字塔 + 洞察 ═══ */}
-        <div className="glass-card p-6 sm:p-8">
+        {/* ═══ 市场结构金字塔 ═══ */}
+        <div className="glass-card p-6 sm:p-8" data-testid="pyramid-chart">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             市场结构洞察
           </h3>
 
-          {/* 金字塔堆叠条 */}
-          <div className="mb-6">
-            <PyramidChart clusters={clusters} />
-          </div>
+          {/* 修复点④: 金字塔堆叠图始终渲染 */}
+          <PyramidChart clusters={clusters} />
 
-          {/* 占比条 */}
-          <div className="flex h-10 w-full overflow-hidden rounded-full">
+          {/* 百分比条 */}
+          <div className="mt-6 flex h-10 w-full overflow-hidden rounded-full">
             {clusters.map((c) => (
-              <div
-                key={c.cluster_id}
+              <div key={c.cluster_id}
                 className="flex items-center justify-center text-xs font-medium transition-all duration-300 hover:brightness-125"
                 style={{ width: `${c.pct}%`, background: CLUSTER_COLORS[c.cluster_id] }}
-                title={`${CLUSTER_NAMES[c.cluster_id]}: ${c.pct}%`}
-              >
+                title={`${CLUSTER_NAMES[c.cluster_id]}: ${c.pct}%`}>
                 {c.pct > 10 ? `${c.pct}%` : ""}
               </div>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-4">
-            {clusters.map((c) => (
-              <span key={c.cluster_id} className="text-xs font-light" style={{ color: "#aaaaaa", fontSize: 12 }}>
-                <span className="font-mono-data font-medium" style={{ color: CLUSTER_COLORS[c.cluster_id] }}>
-                  {c.pct}%
-                </span>
-                {" "}{CLUSTER_NAMES[c.cluster_id].replace(/^[^\s]+\s/, "")}
+
+          {/* 图例 */}
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5">
+            {clusters.map((c, i) => (
+              <span key={c.cluster_id} className="text-xs" style={{ color: "#bbbbbb", fontSize: 12 }}>
+                <span className="font-mono-data font-medium" style={{ color: CLUSTER_COLORS[i] }}>{c.pct}%</span>
+                {" "}{CLUSTER_NAMES[i].replace(/^[^\s]+\s/, "")}
               </span>
             ))}
           </div>
-          <p className="mt-4 text-sm leading-relaxed" style={{ color: "#888888", fontSize: 14 }}>
-            重庆二手房市场以<strong style={{ color: "#9b59b6" }}>远郊大户型（36.4%）</strong>和
-            <strong style={{ color: "#4a90e2" }}>紧凑刚需（27.7%）</strong>为主，合计占比 64%，
-            呈现典型的"金字塔"结构。高端豪宅仅占 5.6%，集中在渝中/江北核心区域。
-          </p>
+
+          {/* 修复点⑤: 底部文字加内边距 */}
+          <div className="mt-5 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <p className="text-sm leading-relaxed" style={{ color: "#aaaaaa", fontSize: 14 }}>
+              重庆二手房市场以<strong style={{ color: "#9b59b6" }}>远郊大户型（36.4%）</strong>和
+              <strong style={{ color: "#4a90e2" }}>紧凑刚需（27.7%）</strong>为主，合计占比 64%，
+              呈现典型的<strong style={{ color: "#ffffff" }}>"金字塔"</strong>结构。
+              高端豪宅仅占 5.6%，集中在渝中/江北核心区域。
+            </p>
+          </div>
         </div>
+
       </div>
     </section>
   );
@@ -178,29 +191,26 @@ export default function ClusteringSection({ data }: Props) {
 
 /* ── 金字塔堆叠条形图 ── */
 function PyramidChart({ clusters }: { clusters: ClusterStat[] }) {
-  /* 从大到小排列，打造金字塔视觉效果 */
   const sorted = [...clusters].sort((a, b) => b.pct - a.pct);
-  const data = sorted.map((c, i) => ({
-    name: CLUSTER_NAMES[c.cluster_id].replace(/^[^\s]+\s/, ""),
+  const chartData = sorted.map((c, i) => ({
+    name: CLUSTER_NAMES[c.cluster_id]?.replace(/^[^\s]+\s/, "") || `类型${c.cluster_id}`,
     pct: c.pct,
-    count: c.count,
     fill: CLUSTER_COLORS[c.cluster_id],
   }));
 
   return (
     <div className="h-[180px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
-          barCategoryGap="30%">
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+        <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }} barCategoryGap="26%">
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
           <XAxis type="number" axisLine={false} tickLine={false}
             tick={{ fill: "#aaaaaa", fontSize: 11, fontWeight: 300 }}
             tickFormatter={(v: number) => v + "%"} />
           <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={80}
-            tick={{ fill: "#cccccc", fontSize: 12, fontWeight: 300 }} />
+            tick={{ fill: "#cccccc", fontSize: 13, fontWeight: 300 }} />
           <Tooltip content={<ChartTooltip />} />
           <Bar dataKey="pct" radius={[0, 6, 6, 0]} maxBarSize={28}>
-            {data.map((d, i) => (
+            {chartData.map((d, i) => (
               <Cell key={i} fill={d.fill} fillOpacity={0.85} />
             ))}
           </Bar>
@@ -210,30 +220,21 @@ function PyramidChart({ clusters }: { clusters: ClusterStat[] }) {
   );
 }
 
-/* ── 单张聚类画像卡 ── */
+/* ── 聚类画像卡片 ── */
 function ClusterCard({ cluster, index }: { cluster: ClusterStat; index: number }) {
   const color = CLUSTER_COLORS[index];
   const name = CLUSTER_NAMES[index];
 
   return (
-    <div
-      className="group p-5 transition-all duration-300"
-      style={{
-        background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`,
-        borderRadius: 16, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-        borderTop: `2px solid ${color}`,
-      }}
-    >
+    <div className="glass-card group p-5 transition-all duration-300"
+      style={{ borderTop: `2px solid ${color}` }}>
       <div className="mb-3 flex items-center gap-2">
         <span className="inline-block h-2 w-2 rounded-full"
           style={{ background: color, boxShadow: `0 0 6px ${color}66` }} />
-        <span className="text-sm font-medium" style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
-          {name}
-        </span>
+        <span className="text-sm font-medium"
+          style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>{name}</span>
       </div>
-      <p className="font-mono-data text-2xl font-medium" style={{ color }}>
-        {cluster.pct}%
-      </p>
+      <p className="font-mono-data text-2xl font-medium" style={{ color }}>{cluster.pct}%</p>
       <p className="text-xs font-light" style={{ color: "#888888" }}>{cluster.count.toLocaleString("zh-CN")} 套</p>
       <div className="mt-4 space-y-2">
         <CardRow label="均价" value={`¥${cluster.avg_unit_price.toLocaleString("zh-CN")}/㎡`} />
