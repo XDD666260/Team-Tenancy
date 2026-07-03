@@ -5,15 +5,17 @@ import PriceChart from "@/components/Dashboard/PriceChart";
 import DistrictRanking from "@/components/Dashboard/DistrictRanking";
 import SourceChart from "@/components/Dashboard/SourceChart";
 import PredictionSection from "@/components/Dashboard/PredictionSection";
-import { getOverview, getPriceDistribution, getPrediction } from "@/lib/api";
+import ClusteringSection from "@/components/Dashboard/ClusteringSection";
+import { getOverview, getPriceDistribution, getPrediction, getClustering } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalysisPage() {
-  const [overview, priceDist, prediction] = await Promise.all([
+  const [overview, priceDist, prediction, clustering] = await Promise.all([
     getOverview(),
     getPriceDistribution(),
     getPrediction(),
+    getClustering(),
   ]);
 
   return (
@@ -46,6 +48,9 @@ export default async function AnalysisPage() {
 
         {/* 房价预测分析 */}
         <PredictionSection data={prediction} />
+
+        {/* KMeans 聚类画像 */}
+        <ClusteringSection data={clustering} />
       </main>
     </SmoothScroll>
   );
