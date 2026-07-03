@@ -14,12 +14,19 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AnalysisPage() {
-  const [overview, prediction, clustering, assocRules] = await Promise.all([
-    getOverview(),
-    getPrediction(),
-    getClustering(),
-    getAssociationRules(),
-  ]);
+  // 独立 fetch，单个失败不影响其他模块
+  const overview = await getOverview().catch(() => null);
+  const prediction = await getPrediction().catch(() => null);
+  const clustering = await getClustering().catch(() => null);
+  const assocRules = await getAssociationRules().catch(() => null);
+
+  if (!overview) {
+    return (
+      <main style={{ background: "var(--bg-primary)", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p className="lead">数据加载失败，请刷新重试</p>
+      </main>
+    );
+  }
 
   return (
     <SmoothScroll>
@@ -60,7 +67,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <PredictionSection data={prediction} />
+        <PredictionSection data={prediction ?? { models: {}, feature_importance: {} }} />
 
         {/* ── KMeans 聚类 — 交互式雷达图 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
@@ -75,7 +82,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <ClusteringSection data={clustering} />
+        <ClusteringSection data={clustering ?? { n_clusters: 5, inertia_: 0, silhouette_score: null, cluster_stats: [] }} />
 
         {/* ── 关联规则 — 交互式热力图 + 表格 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
@@ -90,7 +97,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <AssociationSection data={assocRules} />
+        <AssociationSection data={assocRules ?? { rules: [], total_rules: 0 }} />
 
         {/* ── 区县排名 — 交互式可点击钻取 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
