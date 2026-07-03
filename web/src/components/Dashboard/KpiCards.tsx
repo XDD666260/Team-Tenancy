@@ -95,12 +95,12 @@ export default function KpiCards({
       glowClass: "num-glow-pink",
     },
     {
-      label: "价格区间",
-      value: formatPrice(minUnitPrice),
-      suffix: " — " + formatPrice(maxUnitPrice),
-      desc: "最低 — 最高单价",
+      label: "最高单价",
+      value: formatPrice(maxUnitPrice),
+      suffix: "元/㎡",
+      desc: "最低 " + formatPrice(minUnitPrice) + " 元/㎡",
       accent: "var(--color-dust-purple-light)",
-      glowClass: "",
+      glowClass: "num-glow-pink",
     },
     {
       label: "覆盖区县",
