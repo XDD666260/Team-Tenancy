@@ -36,12 +36,15 @@ export default function ClusteringSection({ data }: Props) {
   const clusters: ClusterStat[] = (data?.cluster_stats?.length ? data.cluster_stats : FALLBACK_CLUSTERS);
   const silhouette = data?.silhouette_score;
 
-  /* 雷达图数据 — 确保每个维度值 > 0 */
+  /* 雷达图数据 — 归一化到 0-100，消除量纲差异（修复均价蓝线上天） */
+  const MAX_VALS = {
+    avg_unit_price: 28000, avg_total_price: 300, avg_area: 150, avg_rooms: 5,
+  };
   const radarData = [
-    { dim: "均价(元/㎡)", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_unit_price, 100)])) },
-    { dim: "总价(万)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_total_price, 1)])) },
-    { dim: "面积(㎡)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_area, 1)])) },
-    { dim: "户型(室)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_rooms, 0.1)])) },
+    { dim: "均价", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, +((Math.max(c.avg_unit_price, 100) / MAX_VALS.avg_unit_price) * 100).toFixed(1)])) },
+    { dim: "总价", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, +((Math.max(c.avg_total_price, 1) / MAX_VALS.avg_total_price) * 100).toFixed(1)])) },
+    { dim: "面积", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, +((Math.max(c.avg_area, 1) / MAX_VALS.avg_area) * 100).toFixed(1)])) },
+    { dim: "户型", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, +((Math.max(c.avg_rooms, 0.1) / MAX_VALS.avg_rooms) * 100).toFixed(1)])) },
   ];
 
   /* debug */
@@ -102,7 +105,7 @@ export default function ClusteringSection({ data }: Props) {
                   <PolarGrid stroke="rgba(255,255,255,0.1)" strokeDasharray="3 3" />
                   <PolarAngleAxis dataKey="dim"
                     tick={{ fill: "#cccccc", fontSize: 12, fontWeight: 400 }} />
-                  <PolarRadiusAxis angle={90} domain={["auto", "auto"]}
+                  <PolarRadiusAxis angle={90} domain={[0, 100]}
                     tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} />
                   <Tooltip content={<ChartTooltip />} />
                   {clusters.map((c) => (

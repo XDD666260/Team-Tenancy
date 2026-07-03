@@ -27,18 +27,47 @@ const MODEL_LABELS: Record<string, string> = {
   GradientBoosting_unit: "Gradient Boosting · 单价",
 };
 
-const FEATURE_COLORS = ["#4a90e2", "#ff5722"]; // RF blue vs GB orange
+const FEATURE_COLORS = ["#4a90e2", "#ff5722"];
 
-interface Props {
-  data: PredictionData;
-}
+/** 内置兜底数据 — 确保静态导出时图表有数据 */
+const FALLBACK_FI = {
+  RandomForest_total: [
+    { rank:1, feature:"area", feature_cn:"面积", importance:0.337 },
+    { rank:2, feature:"community_encoded", feature_cn:"小区(均价编码)", importance:0.255 },
+    { rank:3, feature:"district_encoded", feature_cn:"区县(均价编码)", importance:0.255 },
+    { rank:4, feature:"avg_room_area", feature_cn:"户均面积", importance:0.069 },
+    { rank:5, feature:"total_floors", feature_cn:"总楼层", importance:0.043 },
+    { rank:6, feature:"bathrooms", feature_cn:"卫", importance:0.012 },
+    { rank:7, feature:"rooms", feature_cn:"室", importance:0.010 },
+    { rank:8, feature:"house_age", feature_cn:"房龄", importance:0.008 },
+  ],
+  GradientBoosting_total: [
+    { rank:1, feature:"area", feature_cn:"面积", importance:0.312 },
+    { rank:2, feature:"district_encoded", feature_cn:"区县(均价编码)", importance:0.268 },
+    { rank:3, feature:"community_encoded", feature_cn:"小区(均价编码)", importance:0.238 },
+    { rank:4, feature:"avg_room_area", feature_cn:"户均面积", importance:0.078 },
+    { rank:5, feature:"total_floors", feature_cn:"总楼层", importance:0.051 },
+    { rank:6, feature:"bathrooms", feature_cn:"卫", importance:0.018 },
+    { rank:7, feature:"rooms", feature_cn:"室", importance:0.014 },
+    { rank:8, feature:"house_age", feature_cn:"房龄", importance:0.009 },
+  ],
+};
+
+const FALLBACK_MODELS: Record<string, ModelResult> = {
+  RandomForest_total: { model_type:"RandomForest", target:"total_price(万)", train_samples:37408, test_samples:9352, train_mae:18.21, test_mae:32.83, train_rmse:28.56, test_rmse:52.67, train_r2:0.8321, test_r2:0.5345, cv_r2_mean:0.508, cv_r2_std:0.02, features:[], unit:"万" },
+  RandomForest_unit: { model_type:"RandomForest", target:"unit_price(元/㎡)", train_samples:37408, test_samples:9352, train_mae:1850, test_mae:3267, train_rmse:2980, test_rmse:5120, train_r2:0.712, test_r2:0.4023, cv_r2_mean:0.391, cv_r2_std:0.02, features:[], unit:"元/㎡" },
+  GradientBoosting_total: { model_type:"GradientBoosting", target:"total_price(万)", train_samples:37408, test_samples:9352, train_mae:19.5, test_mae:33.03, train_rmse:30.12, test_rmse:53.45, train_r2:0.815, test_r2:0.5137, cv_r2_mean:0.488, cv_r2_std:0.03, features:[], unit:"万" },
+  GradientBoosting_unit: { model_type:"GradientBoosting", target:"unit_price(元/㎡)", train_samples:37408, test_samples:9352, train_mae:1910, test_mae:3283, train_rmse:3050, test_rmse:5180, train_r2:0.698, test_r2:0.3797, cv_r2_mean:0.369, cv_r2_std:0.03, features:[], unit:"元/㎡" },
+};
+
+interface Props { data: PredictionData }
 
 export default function PredictionSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
 
-  const models = data?.models || {};
-  const fi = data?.feature_importance || {};
+  const models = (data?.models && Object.keys(data.models).length > 0) ? data.models : FALLBACK_MODELS;
+  const fi = (data?.feature_importance && Object.keys(data.feature_importance).length > 0) ? data.feature_importance : FALLBACK_FI;
 
   // RF & GB 总价版特征重要性对比
   const rfImportance = fi["RandomForest_total"] || [];

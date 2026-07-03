@@ -142,7 +142,7 @@ export default function DistrictRanking({ districts }: Props) {
                 cursor="pointer"
                 onClick={(entry) => {
                   const d = (entry as unknown as DistrictStat);
-                  router.push(`/analysis/district/${encodeURIComponent(d.district)}`);
+                  router.push(`/analysis/district/${d.district}`);
                 }}
                 onMouseEnter={(_, index) => {
                   const bars = document.querySelectorAll(
