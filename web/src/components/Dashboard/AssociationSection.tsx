@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -35,36 +35,41 @@ function getLiftTier(lift: number) { return LIFT_TIERS.find(t => lift >= t.thres
 
 interface Props { data: { rules?: AssociationRule[]; total_rules?: number } }
 
+/** 合并 API 数据与兜底数据 — 关键修复：不使用 useMemo 避免 SSR hydration 丢失字段 */
+function mergeRules(data: Props["data"]): AssociationRule[] {
+  const apiRules = data?.rules || [];
+  // API 数据有效则用它，否则用硬兜底
+  const validApi = apiRules.filter((r) => r?.antecedents && r?.consequents);
+  if (validApi.length > 0) return validApi.slice(0, 10);
+  // 否则用 FALLBACK_RULES
+  return FALLBACK_RULES.slice(0, 10);
+}
+
 export default function AssociationSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const scatterRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
 
-  /* 修复点①: 三重兜底 */
-  const rules = useMemo(() => {
-    const src = data?.rules?.length ? data.rules : FALLBACK_RULES;
-    return src.slice(0, 10);
-  }, [data]);
+  /* 直接用函数计算，不用 useMemo，确保每次渲染拿到正确数据 */
+  const rules = mergeRules(data);
   const totalRules = data?.total_rules || rules.length;
 
-  /* 修复点②: 热力图数据 */
-  const scatterData = useMemo(() => rules.map((r, i) => ({
+  /* 热力图数据 */
+  const scatterData = rules.map((r, i) => ({
     x: +(r.support * 100).toFixed(2),
     y: +(r.confidence * 100).toFixed(1),
     z: +r.lift.toFixed(2),
     idx: i,
     ante: r.antecedents,
     cons: r.consequents,
-  })), [rules]);
+  }));
 
-  /* 修复点⑦: debug */
+  /* debug: 打印原始数据字段，定位空值来源 */
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[AssociationSection] rules:", rules.length,
-        "| scatterData:", scatterData,
-        "| container:", scatterRef.current ? `${scatterRef.current.offsetWidth}x${scatterRef.current.offsetHeight}` : "null");
-    }
-  }, [rules, scatterData]);
+    console.log("[AssociationSection] raw data.rules:", data?.rules);
+    console.log("[AssociationSection] merged rules:", rules.map(r => ({ ante: r.antecedents?.slice(0, 10), cons: r.consequents?.slice(0, 10) })));
+    console.log("[AssociationSection] container:", scatterRef.current ? `${scatterRef.current.offsetWidth}x${scatterRef.current.offsetHeight}` : "null");
+  }, [data]);
 
   useEffect(() => {
     if (initialized.current) return;

@@ -32,11 +32,11 @@ export default function ClusteringSection({ data }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  /* 修复点①: 三重兜底 — data?.cluster_stats → 空数组 → FALLBACK */
+  /* 直接计算，不用 useMemo */
   const clusters: ClusterStat[] = (data?.cluster_stats?.length ? data.cluster_stats : FALLBACK_CLUSTERS);
   const silhouette = data?.silhouette_score;
 
-  /* 修复点②: 雷达图数据 — 确保每个维度的值 > 0（Recharts 雷达图需要非零值才能渲染多边形） */
+  /* 雷达图数据 — 确保每个维度值 > 0 */
   const radarData = [
     { dim: "均价(元/㎡)", ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_unit_price, 100)])) },
     { dim: "总价(万)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_total_price, 1)])) },
@@ -44,15 +44,12 @@ export default function ClusteringSection({ data }: Props) {
     { dim: "户型(室)",   ...Object.fromEntries(clusters.map(c => [`c${c.cluster_id}`, Math.max(c.avg_rooms, 0.1)])) },
   ];
 
-  /* 修复点⑧: debug 钩子 */
+  /* debug */
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      const el = chartContainerRef.current;
-      console.log("[ClusteringSection] clusters:", clusters.length,
-        "| radarData:", radarData,
-        "| container:", el ? `${el.offsetWidth}x${el.offsetHeight}` : "null");
-    }
-  }, [clusters, radarData]);
+    console.log("[ClusteringSection] clusters:", clusters.map(c => ({ id: c.cluster_id, price: c.avg_unit_price })));
+    console.log("[ClusteringSection] radarData sample:", radarData[0]);
+    console.log("[ClusteringSection] container:", chartContainerRef.current ? `${chartContainerRef.current.offsetWidth}x${chartContainerRef.current.offsetHeight}` : "null");
+  }, [clusters]);
 
   /* 入场动画 */
   useEffect(() => {
