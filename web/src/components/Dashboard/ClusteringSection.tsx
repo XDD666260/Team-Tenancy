@@ -4,8 +4,9 @@ import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  Radar, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import ChartTooltip from "./ChartTooltip";
 import type { ClusteringData, ClusterStat } from "@/lib/types";
@@ -16,12 +17,12 @@ gsap.registerPlugin(ScrollTrigger);
 const CLUSTER_COLORS = ["#4a90e2", "#9b59b6", "#00bcd4", "#ff5722", "#94ddde"];
 const CLUSTER_NAMES = ["🏠 紧凑刚需型", "🏘️ 远郊大户型", "🏡 中等舒适型", "🏙️ 改善大户型", "🏰 高端豪宅型"];
 
-/* ── 比较图维度 ── */
-const COMPARE_DIMS = [
-  { key: "avg_unit_price", label: "均价(元/㎡)" },
-  { key: "avg_total_price", label: "总价(万)" },
-  { key: "avg_area", label: "面积(㎡)" },
-  { key: "avg_rooms", label: "户型(室)" },
+/* 雷达图维度 */
+const RADAR_DIMS = [
+  { key: "avg_unit_price", label: "均价", max: 30000 },
+  { key: "avg_total_price", label: "总价(万)", max: 300 },
+  { key: "avg_area", label: "面积(㎡)", max: 150 },
+  { key: "avg_rooms", label: "户型(室)", max: 5 },
 ];
 
 interface Props {
@@ -34,11 +35,12 @@ export default function ClusteringSection({ data }: Props) {
 
   const clusters = data?.cluster_stats || [];
 
-  // 为比较图准备数据
-  const compareData = COMPARE_DIMS.map((dim) => {
+  /* ── 雷达图数据 ── */
+  const radarData = RADAR_DIMS.map((dim) => {
     const entry: Record<string, number | string> = { dimension: dim.label };
     clusters.forEach((c) => {
-      entry[`聚类${c.cluster_id}`] = +(c as unknown as Record<string, number>)[dim.key]?.toFixed(1) || 0;
+      const raw = +(c as unknown as Record<string, number>)[dim.key] || 0;
+      entry[`聚类${c.cluster_id}`] = Math.min(raw, dim.max);
     });
     return entry;
   });
@@ -46,16 +48,12 @@ export default function ClusteringSection({ data }: Props) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".cluster-section",
-        { opacity: 0, y: 36 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
-          scrollTrigger: { trigger: sectionRef.current, start: "top 82%" } }
-      );
+      gsap.fromTo(".cluster-section", { opacity: 0, y: 36 }, {
+        opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
+        scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
+      });
     }, sectionRef);
-
     return () => ctx.revert();
   }, []);
 
@@ -82,45 +80,49 @@ export default function ClusteringSection({ data }: Props) {
           ))}
         </div>
 
-        {/* ═══ 多维度对比图 ═══ */}
-        <div
-          className="p-6 sm:p-8"
-          style={{
-            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-          }}
-        >
+        {/* ═══ 雷达图 ═══ */}
+        <div className="glass-card p-6 sm:p-8">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
-            五类画像多维度对比
+            五类画像雷达图
           </h3>
-          <div className="h-[300px]">
+          <div className="h-[420px] sm:h-[480px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={compareData} margin={{ top: 0, right: 12, left: -12, bottom: 0 }} barCategoryGap="28%">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="dimension" axisLine={false} tickLine={false}
-                  tick={{ fill: "#aaaaaa", fontSize: 12, fontWeight: 300 }} />
-                <YAxis axisLine={false} tickLine={false}
-                  tick={{ fill: "#aaaaaa", fontSize: 11, fontWeight: 300 }} />
+              <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                <PolarAngleAxis
+                  dataKey="dimension"
+                  tick={{ fill: "#aaaaaa", fontSize: 13, fontWeight: 300 }}
+                />
+                <PolarRadiusAxis
+                  angle={30}
+                  domain={[0, "auto"]}
+                  tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 10 }}
+                  axisLine={false}
+                />
                 <Tooltip content={<ChartTooltip />} />
                 {clusters.map((c) => (
-                  <Bar key={c.cluster_id} dataKey={`聚类${c.cluster_id}`}
-                    radius={[4, 4, 0, 0]} maxBarSize={32}>
-                    {compareData.map((_, j) => (
-                      <Cell key={j} fill={CLUSTER_COLORS[c.cluster_id]} fillOpacity={0.75} />
-                    ))}
-                  </Bar>
+                  <Radar
+                    key={c.cluster_id}
+                    name={CLUSTER_NAMES[c.cluster_id]}
+                    dataKey={`聚类${c.cluster_id}`}
+                    stroke={CLUSTER_COLORS[c.cluster_id]}
+                    fill={CLUSTER_COLORS[c.cluster_id]}
+                    fillOpacity={0.08}
+                    strokeWidth={2}
+                    strokeOpacity={0.9}
+                  />
                 ))}
-              </BarChart>
+              </RadarChart>
             </ResponsiveContainer>
           </div>
           {/* 图例 */}
-          <div className="mt-4 flex flex-wrap gap-4">
+          <div className="mt-2 flex flex-wrap justify-center gap-5">
             {clusters.map((c) => (
               <div key={c.cluster_id} className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 rounded-sm"
-                  style={{ background: CLUSTER_COLORS[c.cluster_id] }} />
-                <span className="text-xs font-light" style={{ color: "#aaaaaa" }}>
+                <span className="inline-block h-3 w-3 rounded-full"
+                  style={{ background: CLUSTER_COLORS[c.cluster_id], boxShadow: `0 0 6px ${CLUSTER_COLORS[c.cluster_id]}66` }} />
+                <span className="text-xs font-light" style={{ color: "#cccccc" }}>
                   {CLUSTER_NAMES[c.cluster_id]}
                 </span>
               </div>
@@ -128,35 +130,32 @@ export default function ClusteringSection({ data }: Props) {
           </div>
         </div>
 
-        {/* ═══ 市场结构 ═══ */}
-        <div
-          className="p-6 sm:p-8"
-          style={{
-            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 16, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-          }}
-        >
-          <h3 className="mb-4 text-base font-medium tracking-wider"
+        {/* ═══ 市场结构：金字塔 + 洞察 ═══ */}
+        <div className="glass-card p-6 sm:p-8">
+          <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             市场结构洞察
           </h3>
+
+          {/* 金字塔堆叠条 */}
+          <div className="mb-6">
+            <PyramidChart clusters={clusters} />
+          </div>
+
           {/* 占比条 */}
-          <div className="flex h-8 w-full overflow-hidden rounded-full">
+          <div className="flex h-10 w-full overflow-hidden rounded-full">
             {clusters.map((c) => (
               <div
                 key={c.cluster_id}
                 className="flex items-center justify-center text-xs font-medium transition-all duration-300 hover:brightness-125"
-                style={{
-                  width: `${c.pct}%`, background: CLUSTER_COLORS[c.cluster_id],
-                  minWidth: c.pct > 5 ? 0 : "auto",
-                }}
+                style={{ width: `${c.pct}%`, background: CLUSTER_COLORS[c.cluster_id] }}
                 title={`${CLUSTER_NAMES[c.cluster_id]}: ${c.pct}%`}
               >
-                {c.pct > 8 ? `${c.pct}%` : ""}
+                {c.pct > 10 ? `${c.pct}%` : ""}
               </div>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-3">
+          <div className="mt-3 flex flex-wrap gap-4">
             {clusters.map((c) => (
               <span key={c.cluster_id} className="text-xs font-light" style={{ color: "#aaaaaa", fontSize: 12 }}>
                 <span className="font-mono-data font-medium" style={{ color: CLUSTER_COLORS[c.cluster_id] }}>
@@ -177,6 +176,40 @@ export default function ClusteringSection({ data }: Props) {
   );
 }
 
+/* ── 金字塔堆叠条形图 ── */
+function PyramidChart({ clusters }: { clusters: ClusterStat[] }) {
+  /* 从大到小排列，打造金字塔视觉效果 */
+  const sorted = [...clusters].sort((a, b) => b.pct - a.pct);
+  const data = sorted.map((c, i) => ({
+    name: CLUSTER_NAMES[c.cluster_id].replace(/^[^\s]+\s/, ""),
+    pct: c.pct,
+    count: c.count,
+    fill: CLUSTER_COLORS[c.cluster_id],
+  }));
+
+  return (
+    <div className="h-[180px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+          barCategoryGap="30%">
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+          <XAxis type="number" axisLine={false} tickLine={false}
+            tick={{ fill: "#aaaaaa", fontSize: 11, fontWeight: 300 }}
+            tickFormatter={(v: number) => v + "%"} />
+          <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={80}
+            tick={{ fill: "#cccccc", fontSize: 12, fontWeight: 300 }} />
+          <Tooltip content={<ChartTooltip />} />
+          <Bar dataKey="pct" radius={[0, 6, 6, 0]} maxBarSize={28}>
+            {data.map((d, i) => (
+              <Cell key={i} fill={d.fill} fillOpacity={0.85} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /* ── 单张聚类画像卡 ── */
 function ClusterCard({ cluster, index }: { cluster: ClusterStat; index: number }) {
   const color = CLUSTER_COLORS[index];
@@ -186,12 +219,11 @@ function ClusterCard({ cluster, index }: { cluster: ClusterStat; index: number }
     <div
       className="group p-5 transition-all duration-300"
       style={{
-        background: "rgba(255,255,255,0.03)", border: `1px solid ${color}22`,
-        borderRadius: 16, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`,
+        borderRadius: 16, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
         borderTop: `2px solid ${color}`,
       }}
     >
-      {/* 标签 */}
       <div className="mb-3 flex items-center gap-2">
         <span className="inline-block h-2 w-2 rounded-full"
           style={{ background: color, boxShadow: `0 0 6px ${color}66` }} />
@@ -199,14 +231,10 @@ function ClusterCard({ cluster, index }: { cluster: ClusterStat; index: number }
           {name}
         </span>
       </div>
-
-      {/* 占比 */}
       <p className="font-mono-data text-2xl font-medium" style={{ color }}>
         {cluster.pct}%
       </p>
       <p className="text-xs font-light" style={{ color: "#888888" }}>{cluster.count.toLocaleString("zh-CN")} 套</p>
-
-      {/* 关键数据 */}
       <div className="mt-4 space-y-2">
         <CardRow label="均价" value={`¥${cluster.avg_unit_price.toLocaleString("zh-CN")}/㎡`} />
         <CardRow label="套均总价" value={`¥${cluster.avg_total_price.toFixed(0)}万`} />
