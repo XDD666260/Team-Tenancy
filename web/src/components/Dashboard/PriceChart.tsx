@@ -17,13 +17,14 @@ import type { PriceBin } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const BAR_COLORS = [
-  "#2b4b82",
-  "#392752",
-  "#6e426a",
-  "#a0637f",
-  "#ce8992",
-  "#94ddde",
+/* 高饱和渐变色 — 每个区间不同色彩 */
+const VIBRANT_COLORS = [
+  "#4a90e2", // 亮蓝
+  "#9b59b6", // 紫
+  "#e91e63", // 粉紫
+  "#ff5722", // 橙红
+  "#00bcd4", // 青
+  "#94ddde", // 薄荷绿
 ];
 
 interface Props {
@@ -43,16 +44,13 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         sectionRef.current,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 36 },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
           ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-          },
+          scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
         }
       );
     }, sectionRef);
@@ -61,76 +59,90 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
   }, []);
 
   const data = activeTab === "unit" ? unitPriceBins : totalPriceBins;
-  const xKey = "range";
   const title =
-    activeTab === "unit" ? "单价分布 (元/㎡)" : "总价分布 (万元)";
+    activeTab === "unit" ? "单价分布" : "总价分布";
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8"
-    >
-      <div className="glass-card p-6 sm:p-8">
-        {/* 标题行 */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
+      <div
+        className="p-6 sm:p-8"
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 16,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        {/* 标题行 + 胶囊切换 */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2
-            className="text-lg font-light tracking-wider sm:text-xl"
-            style={{ color: "var(--color-text)" }}
+            className="text-lg font-medium tracking-wider sm:text-xl"
+            style={{
+              fontFamily: '"PingFang SC", "Noto Sans SC", sans-serif',
+              fontWeight: 500,
+              color: "#ffffff",
+            }}
           >
             {title}
+            <span
+              className="ml-3 text-sm font-light"
+              style={{ color: "#aaaaaa", fontSize: 14 }}
+            >
+              (元/㎡)
+            </span>
           </h2>
 
-          {/* Tab 切换 */}
+          {/* 胶囊型切换按钮 */}
           <div
-            className="inline-flex rounded-full p-0.5"
-            style={{ background: "rgba(255,255,255,0.06)" }}
+            className="inline-flex items-center rounded-full p-0.5"
+            style={{ background: "rgba(255,255,255,0.05)" }}
           >
             {[
-              { key: "unit", label: "单价" },
-              { key: "total", label: "总价" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as "unit" | "total")}
-                className="rounded-full px-5 py-2 text-xs font-light tracking-wider transition-all duration-300"
-                style={
-                  activeTab === tab.key
-                    ? {
-                        background: "rgba(148,221,222,0.15)",
-                        color: "var(--color-mint)",
-                      }
-                    : {
-                        background: "transparent",
-                        color: "var(--color-text-hint)",
-                      }
-                }
-              >
-                {tab.label}
-              </button>
-            ))}
+              { key: "unit" as const, label: "单价" },
+              { key: "total" as const, label: "总价" },
+            ].map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className="rounded-full px-6 py-2 text-sm font-light tracking-wider transition-all duration-300"
+                  style={{
+                    background: isActive
+                      ? "rgba(148,221,222,0.18)"
+                      : "transparent",
+                    color: isActive ? "var(--color-mint)" : "#aaaaaa",
+                    fontWeight: isActive ? 500 : 300,
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* 图表 */}
-        <div className="h-72 sm:h-80">
+        <div className="h-72 sm:h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
-              barCategoryGap="20%"
+              margin={{ top: 8, right: 12, left: -16, bottom: 0 }}
+              barCategoryGap="22%"
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.04)"
+                stroke="rgba(255,255,255,0.05)"
                 vertical={false}
               />
               <XAxis
-                dataKey={xKey}
+                dataKey="range"
                 axisLine={false}
                 tickLine={false}
                 tick={{
-                  fill: "rgba(255,255,255,0.4)",
-                  fontSize: 11,
+                  fill: "#aaaaaa",
+                  fontSize: 12,
                   fontWeight: 300,
                 }}
               />
@@ -138,8 +150,8 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
                 axisLine={false}
                 tickLine={false}
                 tick={{
-                  fill: "rgba(255,255,255,0.4)",
-                  fontSize: 11,
+                  fill: "#aaaaaa",
+                  fontSize: 12,
                   fontWeight: 300,
                 }}
                 tickFormatter={(v: number) =>
@@ -148,26 +160,58 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
               />
               <Tooltip
                 contentStyle={{
-                  background: "rgba(26,26,46,0.95)",
+                  background: "rgba(18,18,30,0.96)",
                   border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: 12,
-                  backdropFilter: "blur(12px)",
+                  backdropFilter: "blur(16px)",
                   color: "#fff",
                   fontSize: 13,
                   fontWeight: 300,
+                  padding: "12px 16px",
                 }}
-                cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                cursor={{ fill: "rgba(255,255,255,0.04)" }}
                 formatter={(value) => {
                   const v = Number(value);
                   return [v.toLocaleString("zh-CN") + " 套", "房源数量"];
                 }}
               />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={48}>
+              <Bar
+                dataKey="count"
+                radius={[6, 6, 0, 0]}
+                maxBarSize={52}
+                // 悬停动画
+                onMouseEnter={(_, index) => {
+                  const bars = document.querySelectorAll(
+                    ".recharts-bar-rectangle"
+                  );
+                  bars.forEach((bar, i) => {
+                    const el = bar as HTMLElement;
+                    if (i === index) {
+                      el.style.filter = "brightness(1.3) drop-shadow(0 4px 12px rgba(0,0,0,0.5))";
+                      el.style.transform = "scaleY(1.04)";
+                      el.style.transformOrigin = "bottom";
+                    } else {
+                      el.style.opacity = "0.5";
+                    }
+                  });
+                }}
+                onMouseLeave={() => {
+                  const bars = document.querySelectorAll(
+                    ".recharts-bar-rectangle"
+                  );
+                  bars.forEach((bar) => {
+                    const el = bar as HTMLElement;
+                    el.style.filter = "";
+                    el.style.transform = "";
+                    el.style.opacity = "1";
+                  });
+                }}
+              >
                 {data.map((_, i) => (
                   <Cell
                     key={i}
-                    fill={BAR_COLORS[i % BAR_COLORS.length]}
-                    fillOpacity={0.75}
+                    fill={VIBRANT_COLORS[i % VIBRANT_COLORS.length]}
+                    fillOpacity={0.82}
                   />
                 ))}
               </Bar>

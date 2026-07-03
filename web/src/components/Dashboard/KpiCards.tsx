@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -11,27 +11,18 @@ interface KpiItem {
   value: string;
   suffix: string;
   desc: string;
-  accent: string; // CSS color
+  accent: string; // CSS var or hex
+  glowClass: string;
 }
 
 function formatNumber(n: number): string {
   if (n >= 10000) return (n / 10000).toFixed(1) + "万";
-  if (n >= 1000) return n.toLocaleString("zh-CN");
-  return String(n);
-}
-
-function formatPrice(n: number): string {
-  if (n >= 10000) return (n / 10000).toFixed(1) + "万";
   return n.toLocaleString("zh-CN");
 }
 
-const KPI_CARD_STYLE: React.CSSProperties = {
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 16,
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-};
+function formatPrice(n: number): string {
+  return n.toLocaleString("zh-CN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 
 interface Props {
   totalHouses: number;
@@ -58,19 +49,18 @@ export default function KpiCards({
     initialized.current = true;
 
     const ctx = gsap.context(() => {
-      // 卡片交错淡入
       gsap.fromTo(
         ".kpi-card",
-        { y: 40, opacity: 0 },
+        { y: 48, opacity: 0 },
         {
           y: 0,
           opacity: 1,
-          stagger: 0.08,
-          duration: 0.7,
+          stagger: 0.06,
+          duration: 0.75,
           ease: "power3.out",
           scrollTrigger: {
             trigger: sectionRef.current,
-            start: "top 85%",
+            start: "top 88%",
           },
         }
       );
@@ -86,13 +76,15 @@ export default function KpiCards({
       suffix: "条",
       desc: "覆盖重庆全域",
       accent: "var(--color-mint)",
+      glowClass: "num-glow-mint",
     },
     {
       label: "房源均价",
-      value: formatNumber(avgUnitPrice),
+      value: formatPrice(avgUnitPrice),
       suffix: "元/㎡",
       desc: "单位面积均价",
-      accent: "var(--color-primary)",
+      accent: "#ffffff",
+      glowClass: "num-glow-blue",
     },
     {
       label: "套均总价",
@@ -100,13 +92,15 @@ export default function KpiCards({
       suffix: "万元",
       desc: "平均总价水平",
       accent: "var(--color-pink-light)",
+      glowClass: "num-glow-pink",
     },
     {
       label: "价格区间",
-      value: formatNumber(minUnitPrice),
-      suffix: "—" + formatNumber(maxUnitPrice),
+      value: formatPrice(minUnitPrice),
+      suffix: " — " + formatPrice(maxUnitPrice),
       desc: "最低 — 最高单价",
-      accent: "var(--color-dust-purple-mid)",
+      accent: "var(--color-dust-purple-light)",
+      glowClass: "",
     },
     {
       label: "覆盖区县",
@@ -114,82 +108,91 @@ export default function KpiCards({
       suffix: "个",
       desc: "数据广度指标",
       accent: "var(--color-mint)",
+      glowClass: "num-glow-mint",
     },
   ];
 
   return (
-    <section ref={sectionRef} className="relative -mt-10 px-4 pb-16 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {kpis.map((kpi) => (
-          <KpiCard key={kpi.label} {...kpi} />
+    <section
+      ref={sectionRef}
+      className="relative -mt-12 px-4 pb-20 sm:px-6 lg:px-8"
+    >
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+        {kpis.map((item) => (
+          <KpiCard key={item.label} {...item} />
         ))}
       </div>
     </section>
   );
 }
 
-function KpiCard({ label, value, suffix, desc, accent }: KpiItem) {
-  const valueRef = useRef<HTMLSpanElement>(null);
+/* ── 单张卡片 ── */
+function KpiCard({ label, value, suffix, desc, accent, glowClass }: KpiItem) {
   const glowRef = useRef<HTMLDivElement>(null);
 
-  // Hover glow effect
   const onEnter = () => {
-    gsap.to(glowRef.current, {
-      opacity: 1,
-      duration: 0.3,
-    });
+    gsap.to(glowRef.current, { opacity: 1, duration: 0.3 });
   };
   const onLeave = () => {
-    gsap.to(glowRef.current, {
-      opacity: 0,
-      duration: 0.3,
-    });
+    gsap.to(glowRef.current, { opacity: 0, duration: 0.35 });
   };
 
   return (
     <div
-      className="kpi-card group relative cursor-default p-5 transition-transform duration-300"
-      style={KPI_CARD_STYLE}
+      className="kpi-card group relative cursor-default p-6"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 16,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        transition: "all 0.35s ease",
+      }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
-      {/* Hover glow */}
+      {/* Hover 外发光 */}
       <div
         ref={glowRef}
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity"
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0"
         style={{
-          boxShadow: `0 0 28px ${accent}22, inset 0 0 28px ${accent}08`,
+          boxShadow: `0 0 32px ${accent}22, inset 0 0 24px ${accent}0a`,
+          transition: "opacity 0.35s ease",
         }}
       />
 
-      <div className="relative z-10">
-        <p
-          className="mb-2 text-xs font-light tracking-wider uppercase"
-          style={{ color: "var(--color-text-hint)" }}
+      <div className="relative z-10 flex flex-col">
+        {/* 标签 — 14px #aaa */}
+        <span
+          className="mb-3 text-sm font-light tracking-wider"
+          style={{ color: "#aaaaaa", fontSize: 14 }}
         >
           {label}
-        </p>
-        <div className="flex items-baseline gap-0.5">
+        </span>
+
+        {/* 数值 — 等宽字体 + 发光 */}
+        <div className="flex items-baseline gap-1">
           <span
-            ref={valueRef}
-            className="text-2xl font-light tracking-tight sm:text-3xl"
+            className={`font-mono-data text-2xl font-medium tracking-tight sm:text-3xl ${glowClass}`}
             style={{ color: accent }}
           >
             {value}
           </span>
           <span
             className="text-sm font-light"
-            style={{ color: "var(--color-text-secondary)" }}
+            style={{ color: "rgba(255,255,255,0.4)" }}
           >
             {suffix}
           </span>
         </div>
-        <p
-          className="mt-1.5 text-xs font-light"
-          style={{ color: "var(--color-text-hint)" }}
+
+        {/* 描述 — 14px #aaa */}
+        <span
+          className="mt-2 text-sm font-light"
+          style={{ color: "#888888", fontSize: 14 }}
         >
           {desc}
-        </p>
+        </span>
       </div>
     </div>
   );

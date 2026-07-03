@@ -17,22 +17,23 @@ import type { DistrictStat } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const RANK_COLORS = [
-  "#94ddde", // #1 薄荷绿突出
-  "#2b4b82",
-  "#2b4b82",
-  "#392752",
-  "#392752",
-  "#6e426a",
-  "#6e426a",
-  "#a0637f",
-  "#a0637f",
-  "#ce8992",
-  "#ce8992",
-  "#f0abc1",
-  "#f0abc1",
-  "#f7b4a7",
-  "#f7b4a7",
+/* TOP 排名渐变色 — 从亮到暗 */
+const RANK_GRADIENT = [
+  "#4a90e2", // #1
+  "#5b7fc5",
+  "#6c6ea8",
+  "#7d5d8b",
+  "#9b59b6", // #5
+  "#a75aaa",
+  "#b35b9e",
+  "#bf5c92",
+  "#e91e63", // #9
+  "#e0557a",
+  "#e16e91",
+  "#e287a8",
+  "#ff5722", // #13
+  "#ff7043",
+  "#ff8964",
 ];
 
 interface Props {
@@ -43,7 +44,6 @@ export default function DistrictRanking({ districts }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
 
-  // 取 TOP 15，反转让 Recharts 横向柱状图从上到下排列
   const data = [...districts].slice(0, 15).reverse();
 
   useEffect(() => {
@@ -53,16 +53,13 @@ export default function DistrictRanking({ districts }: Props) {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         sectionRef.current,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 36 },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
           ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-          },
+          scrollTrigger: { trigger: sectionRef.current, start: "top 82%" },
         }
       );
     }, sectionRef);
@@ -71,37 +68,47 @@ export default function DistrictRanking({ districts }: Props) {
   }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8"
-    >
-      <div className="glass-card p-6 sm:p-8">
-        <div className="mb-6 flex items-center justify-between">
+    <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
+      <div
+        className="p-6 sm:p-8"
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 16,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <div className="mb-8 flex items-center justify-between">
           <h2
-            className="text-lg font-light tracking-wider sm:text-xl"
-            style={{ color: "var(--color-text)" }}
+            className="text-lg font-medium tracking-wider sm:text-xl"
+            style={{
+              fontFamily: '"PingFang SC", "Noto Sans SC", sans-serif',
+              fontWeight: 500,
+              color: "#ffffff",
+            }}
           >
             区县房源排名
           </h2>
           <span
-            className="text-xs font-light"
-            style={{ color: "var(--color-text-hint)" }}
+            className="text-sm font-light"
+            style={{ color: "#aaaaaa", fontSize: 14 }}
           >
             TOP 15
           </span>
         </div>
 
-        <div className="h-[420px] sm:h-[480px]">
+        <div id="district-chart" className="h-[460px] sm:h-[520px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
               layout="vertical"
-              margin={{ top: 0, right: 8, left: 8, bottom: 0 }}
-              barCategoryGap="25%"
+              margin={{ top: 0, right: 12, left: 8, bottom: 0 }}
+              barCategoryGap="28%"
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.04)"
+                stroke="rgba(255,255,255,0.05)"
                 horizontal={false}
               />
               <XAxis
@@ -109,7 +116,7 @@ export default function DistrictRanking({ districts }: Props) {
                 axisLine={false}
                 tickLine={false}
                 tick={{
-                  fill: "rgba(255,255,255,0.4)",
+                  fill: "#aaaaaa",
                   fontSize: 11,
                   fontWeight: 300,
                 }}
@@ -122,40 +129,68 @@ export default function DistrictRanking({ districts }: Props) {
                 dataKey="district"
                 axisLine={false}
                 tickLine={false}
-                width={72}
+                width={76}
                 tick={{
-                  fill: "rgba(255,255,255,0.65)",
-                  fontSize: 12,
+                  fill: "#cccccc",
+                  fontSize: 13,
                   fontWeight: 300,
+                  fontFamily: '"PingFang SC", "Noto Sans SC", sans-serif',
                 }}
               />
               <Tooltip
                 contentStyle={{
-                  background: "rgba(26,26,46,0.95)",
+                  background: "rgba(18,18,30,0.96)",
                   border: "1px solid rgba(255,255,255,0.1)",
                   borderRadius: 12,
-                  backdropFilter: "blur(12px)",
+                  backdropFilter: "blur(16px)",
                   color: "#fff",
                   fontSize: 13,
                   fontWeight: 300,
+                  padding: "12px 16px",
                 }}
-                cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                cursor={{ fill: "rgba(255,255,255,0.04)" }}
                 formatter={(value, _name, props) => {
                   const v = Number(value);
-                  const district = (props.payload as DistrictStat).district;
-                  const avgPrice = (props.payload as DistrictStat).avg_unit_price;
+                  const d = props.payload as DistrictStat;
                   return [
                     `${v.toLocaleString("zh-CN")} 套`,
-                    `${district} · 均价 ¥${avgPrice.toLocaleString("zh-CN")}/㎡`,
+                    `${d.district} · 均价 ¥${d.avg_unit_price.toLocaleString("zh-CN")}/㎡`,
                   ];
                 }}
               />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22}>
+              <Bar
+                dataKey="count"
+                radius={[0, 6, 6, 0]}
+                maxBarSize={24}
+                onMouseEnter={(_, index) => {
+                  const bars = document.querySelectorAll(
+                    "#district-chart .recharts-bar-rectangle"
+                  );
+                  bars.forEach((bar, i) => {
+                    const el = bar as HTMLElement;
+                    if (i === index) {
+                      el.style.filter = "brightness(1.4) drop-shadow(0 3px 10px rgba(0,0,0,0.5))";
+                    } else {
+                      el.style.opacity = "0.4";
+                    }
+                  });
+                }}
+                onMouseLeave={() => {
+                  const bars = document.querySelectorAll(
+                    "#district-chart .recharts-bar-rectangle"
+                  );
+                  bars.forEach((bar) => {
+                    const el = bar as HTMLElement;
+                    el.style.filter = "";
+                    el.style.opacity = "1";
+                  });
+                }}
+              >
                 {data.map((_, i) => (
                   <Cell
                     key={i}
-                    fill={RANK_COLORS[i % RANK_COLORS.length]}
-                    fillOpacity={0.8}
+                    fill={RANK_GRADIENT[i % RANK_GRADIENT.length]}
+                    fillOpacity={0.78}
                   />
                 ))}
               </Bar>

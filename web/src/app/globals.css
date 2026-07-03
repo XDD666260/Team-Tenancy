@@ -7,15 +7,16 @@
    ============================================ */
 
 :root {
-  /* 主色调 */
+  /* 主色调 — 强化 */
   --color-primary: #2b4b82;
   --color-primary-rgb: 43, 75, 130;
+  --color-primary-bright: #3a6ab5;
 
   /* 辅助深色 */
   --color-deep-purple: #392752;
   --color-deep-purple-rgb: 57, 39, 82;
 
-  /* 脏紫色系 — 卡片 / 强调 */
+  /* 脏紫色系 */
   --color-dust-purple: #6e426a;
   --color-dust-purple-mid: #a0637f;
   --color-dust-purple-light: #ce8992;
@@ -24,18 +25,24 @@
   --color-pink-light: #f7b4a7;
   --color-pink-soft: #f0abc1;
   --color-mint: #94ddde;
+  --color-mint-rgb: 148, 221, 222;
 
   /* 背景 & 文字 */
   --color-bg: #1a1a2e;
   --color-bg-rgb: 26, 26, 46;
   --color-text: #ffffff;
-  --color-text-secondary: rgba(255, 255, 255, 0.65);
-  --color-text-hint: rgba(255, 255, 255, 0.4);
+  --color-text-secondary: #aaaaaa;
+  --color-text-hint: rgba(255, 255, 255, 0.35);
 
-  /* 毛玻璃 */
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-backdrop: blur(20px) saturate(180%);
+  /* 毛玻璃 — 强化层次 */
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-backdrop: blur(12px) saturate(180%);
+
+  /* 发光 */
+  --glow-pink: 0 0 12px rgba(247, 180, 167, 0.35);
+  --glow-blue: 0 0 12px rgba(43, 75, 130, 0.4);
+  --glow-mint: 0 0 12px rgba(148, 221, 222, 0.35);
 }
 
 /* ============================================
@@ -80,14 +87,40 @@ html.lenis body {
 }
 
 /* ============================================
-   工具类：毛玻璃卡片
+   工具类
    ============================================ */
 @layer components {
+  /* 毛玻璃卡片 — 强化版 */
   .glass-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: var(--glass-backdrop);
-    -webkit-backdrop-filter: var(--glass-backdrop);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: 16px;
+    transition: all 0.35s ease;
+  }
+
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 数字发光 */
+  .num-glow-pink {
+    text-shadow: 0 0 8px rgba(247, 180, 167, 0.3);
+  }
+  .num-glow-blue {
+    text-shadow: 0 0 8px rgba(43, 75, 130, 0.4);
+  }
+  .num-glow-mint {
+    text-shadow: 0 0 8px rgba(148, 221, 222, 0.3);
+  }
+
+  /* 等宽数字字体 */
+  .font-mono-data {
+    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas",
+      "Menlo", monospace;
+    font-variant-numeric: tabular-nums;
   }
 }
