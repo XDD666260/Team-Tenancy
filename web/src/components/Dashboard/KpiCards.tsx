@@ -139,58 +139,38 @@ function KpiCard({ label, value, suffix, desc, accent, glowClass }: KpiItem) {
 
   return (
     <div
-      className="kpi-card group relative cursor-default p-6"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 16,
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        transition: "all 0.35s ease",
-      }}
+      className="kpi-card glass-card group relative cursor-default"
+      style={{ padding: 24, transition: "all 0.35s ease" }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
-      {/* Hover 外发光 */}
-      <div
-        ref={glowRef}
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0"
+      {/* [UI-OPTIMIZE] hover 外发光 */}
+      <div ref={glowRef}
+        className="pointer-events-none absolute inset-0 rounded-[20px] opacity-0"
         style={{
-          boxShadow: `0 0 32px ${accent}22, inset 0 0 24px ${accent}0a`,
+          boxShadow: `0 0 36px ${accent}22, inset 0 0 28px ${accent}08`,
           transition: "opacity 0.35s ease",
-        }}
-      />
+        }} />
 
       <div className="relative z-10 flex flex-col">
-        {/* 标签 — 14px #aaa */}
-        <span
-          className="mb-3 text-sm font-light tracking-wider"
-          style={{ color: "#aaaaaa", fontSize: 14 }}
-        >
+        {/* 标签 — 14px */}
+        <span className="body-text mb-3" style={{ fontSize: 14, color: "var(--color-text-hint)" }}>
           {label}
         </span>
 
-        {/* 数值 — 等宽字体 + 发光 */}
+        {/* 数值 — mono + 发光 */}
         <div className="flex items-baseline gap-1">
-          <span
-            className={`font-mono-data text-2xl font-medium tracking-tight sm:text-3xl ${glowClass}`}
-            style={{ color: accent }}
-          >
+          <span className={`font-mono-data text-2xl sm:text-3xl tracking-tight ${glowClass}`}
+            style={{ color: accent, fontWeight: 600 }}>
             {value}
           </span>
-          <span
-            className="text-sm font-light"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-          >
+          <span className="text-sm font-light" style={{ color: "rgba(255,255,255,0.4)" }}>
             {suffix}
           </span>
         </div>
 
-        {/* 描述 — 14px #aaa */}
-        <span
-          className="mt-2 text-sm font-light"
-          style={{ color: "#888888", fontSize: 14 }}
-        >
+        {/* 描述 */}
+        <span className="body-text mt-2" style={{ fontSize: 14, color: "#888888" }}>
           {desc}
         </span>
       </div>

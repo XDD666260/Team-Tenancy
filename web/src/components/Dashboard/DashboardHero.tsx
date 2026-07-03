@@ -78,32 +78,25 @@ export default function DashboardHero({ updateTime }: { updateTime: string }) {
           实时数据
         </div>
 
-        {/* 标题 — PingFang SC Medium */}
-        <h1
-          ref={titleRef}
-          className="text-3xl font-medium tracking-wider sm:text-4xl md:text-5xl"
+        {/* [UI-OPTIMIZE] 标题 — heading-lg */}
+        <h1 ref={titleRef}
+          className="heading-lg text-4xl sm:text-5xl"
           style={{
-            fontFamily: '"PingFang SC", "Noto Sans SC", sans-serif',
-            fontWeight: 500,
-            background:
-              "linear-gradient(180deg, #ffffff 0%, rgba(226,226,226,0.9) 100%)",
+            background: "linear-gradient(180deg, #ffffff 0%, rgba(226,226,226,0.9) 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
-          }}
-        >
+          }}>
           数据仪表盘
         </h1>
 
-        {/* 副标题 — 14px #aaa */}
-        <p
-          ref={subtitleRef}
-          className="mt-4 text-sm font-light tracking-wide"
-          style={{ color: "#aaaaaa" }}
-        >
-          基于 50,507 条真实二手房数据 · 多维度可视化分析
+        {/* [UI-OPTIMIZE] 副标题 — body-text + 时间 */}
+        <p ref={subtitleRef}
+          className="body-text mt-4 tracking-wide"
+          style={{ fontSize: 14, color: "var(--color-text-hint)" }}>
+          基于 <span className="num-glow-pink">50,507</span> 条真实二手房数据 · 多维度可视化分析
           {updateTime && (
-            <span className="ml-3" style={{ color: "rgba(255,255,255,0.25)" }}>
+            <span className="ml-3" style={{ color: "rgba(255,255,255,0.25)", fontSize: 12 }}>
               更新于 {updateTime}
             </span>
           )}

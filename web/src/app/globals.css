@@ -3,52 +3,52 @@
 @tailwind utilities;
 
 /* ============================================
-   Design Token — 重庆房价洞察
+   [UI-OPTIMIZE] Design Token — 重庆房价洞察 v2
+   灵感来源: Apple / Shift5 / Awwwards
    ============================================ */
-
 :root {
-  /* 主色调 — 强化 */
+  /* 主色 */
   --color-primary: #2b4b82;
   --color-primary-rgb: 43, 75, 130;
-  --color-primary-bright: #3a6ab5;
+  --color-primary-bright: #4a90e2;
 
-  /* 辅助深色 */
+  /* 辅助深紫 */
   --color-deep-purple: #392752;
   --color-deep-purple-rgb: 57, 39, 82;
 
-  /* 脏紫色系 */
+  /* 脏紫系 */
   --color-dust-purple: #6e426a;
   --color-dust-purple-mid: #a0637f;
   --color-dust-purple-light: #ce8992;
 
-  /* 点缀色 */
+  /* 点缀 */
   --color-pink-light: #f7b4a7;
   --color-pink-soft: #f0abc1;
   --color-mint: #94ddde;
   --color-mint-rgb: 148, 221, 222;
 
   /* 背景 & 文字 */
-  --color-bg: #1a1a2e;
-  --color-bg-rgb: 26, 26, 46;
+  --color-bg-start: #0f172a;
+  --color-bg-mid: #1e1b4b;
+  --color-bg-end: #2d1b69;
   --color-text: #ffffff;
-  --color-text-secondary: #aaaaaa;
-  --color-text-hint: rgba(255, 255, 255, 0.35);
+  --color-text-secondary: #cccccc;
+  --color-text-hint: #aaaaaa;
 
-  /* 毛玻璃 — 强化层次 */
+  /* [UI-OPTIMIZE] 毛玻璃 v3 */
   --glass-bg: rgba(255, 255, 255, 0.04);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-backdrop: blur(12px) saturate(180%);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(20px) saturate(150%);
 
-  /* 发光 */
-  --glow-pink: 0 0 12px rgba(247, 180, 167, 0.35);
-  --glow-blue: 0 0 12px rgba(43, 75, 130, 0.4);
-  --glow-mint: 0 0 12px rgba(148, 221, 222, 0.35);
+  /* [UI-OPTIMIZE] 发光 */
+  --glow-pink: 0 0 10px rgba(247, 180, 167, 0.3);
+  --glow-blue: 0 0 10px rgba(43, 75, 130, 0.35);
+  --glow-mint: 0 0 10px rgba(148, 221, 222, 0.3);
 }
 
 /* ============================================
-   全局基础
+   [UI-OPTIMIZE] 全局基础
    ============================================ */
-
 html {
   scroll-behavior: smooth;
 }
@@ -56,95 +56,173 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--color-bg);
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #2d1b69 100%);
   color: var(--color-text);
-  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", "Arial",
-    sans-serif;
+  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 /* ============================================
-   Lenis 平滑滚动覆盖
+   [UI-OPTIMIZE] Lenis 平滑滚动
    ============================================ */
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-stopped {
-  overflow: clip;
-}
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: clip; }
 
 /* ============================================
-   工具类
+   [UI-OPTIMIZE] 组件工具类
    ============================================ */
 @layer components {
-  /* 毛玻璃卡片 — 强化版 */
+  /* 毛玻璃卡片 — 苹果级层次感 */
   .glass-card {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
     transition: all 0.35s ease;
   }
-
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(148, 221, 222, 0.25);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 20px rgba(148, 221, 222, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(148, 221, 222, 0.18);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 24px rgba(148, 221, 222, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
-  /* 数字发光 */
+  /* [UI-OPTIMIZE] 标题层级 */
+  .heading-xl {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-weight: 500;
+    font-size: 48px;
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+  }
+  .heading-lg {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+  }
+  .heading-md {
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.3;
+  }
+  .subtitle {
+    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas", monospace;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+  }
+  .body-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+  }
+
+  /* [UI-OPTIMIZE] 关键数字发光 */
   .num-glow-pink {
-    text-shadow: 0 0 8px rgba(247, 180, 167, 0.3);
+    color: var(--color-pink-light);
+    font-weight: 600;
+    text-shadow: var(--glow-pink);
   }
   .num-glow-blue {
-    text-shadow: 0 0 8px rgba(43, 75, 130, 0.4);
+    color: var(--color-primary-bright);
+    font-weight: 600;
+    text-shadow: var(--glow-blue);
   }
   .num-glow-mint {
-    text-shadow: 0 0 8px rgba(148, 221, 222, 0.3);
+    color: var(--color-mint);
+    font-weight: 600;
+    text-shadow: var(--glow-mint);
   }
 
-  /* 等宽数字字体 */
+  /* [UI-OPTIMIZE] 等宽数字 */
   .font-mono-data {
-    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas",
-      "Menlo", monospace;
+    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas", monospace;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* [UI-OPTIMIZE] 胶囊按钮 */
+  .btn-capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--color-text);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+  .btn-capsule:hover {
+    transform: scale(1.05);
+    background: rgba(43, 75, 130, 0.25);
+    border-color: rgba(148, 221, 222, 0.4);
+    box-shadow: 0 0 28px rgba(148, 221, 222, 0.18), 0 8px 24px rgba(0, 0, 0, 0.3);
   }
 }
 
 /* ============================================
-   Recharts Tooltip 文字颜色覆盖
+   [UI-OPTIMIZE] Recharts Tooltip 深色覆盖
    ============================================ */
 .recharts-tooltip-wrapper .recharts-tooltip-label,
+.recharts-tooltip-wrapper .recharts-tooltip-item,
 .recharts-tooltip-wrapper .recharts-tooltip-item-list,
-.recharts-tooltip-wrapper .recharts-tooltip-item {
-  color: #ffffff !important;
-  font-weight: 300;
-}
-
 .recharts-tooltip-wrapper .recharts-tooltip-item-name,
 .recharts-tooltip-wrapper .recharts-tooltip-item-value,
 .recharts-tooltip-wrapper .recharts-tooltip-item-separator {
   color: #ffffff !important;
   font-weight: 300;
 }
-
 .recharts-tooltip-wrapper .recharts-tooltip-label {
   color: #aaaaaa !important;
   font-size: 12px;
   margin-bottom: 4px;
+}
+
+/* ============================================
+   [UI-OPTIMIZE] Intersection Observer 动画
+   ============================================ */
+.animate-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.animate-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* [UI-OPTIMIZE] 交错动画延迟 */
+.stagger-1 { transition-delay: 0ms; }
+.stagger-2 { transition-delay: 80ms; }
+.stagger-3 { transition-delay: 160ms; }
+.stagger-4 { transition-delay: 240ms; }
+.stagger-5 { transition-delay: 320ms; }
+
+/* ============================================
+   [UI-OPTIMIZE] 向下滚动箭头动画
+   ============================================ */
+@keyframes scroll-arrow {
+  0%, 100% { transform: translateY(0); opacity: 0.3; }
+  50% { transform: translateY(6px); opacity: 0.7; }
+}
+.scroll-arrow-anim {
+  animation: scroll-arrow 2s ease-in-out infinite;
 }
