@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -43,6 +44,7 @@ interface Props {
 export default function DistrictRanking({ districts }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
+  const router = useRouter();
 
   const data = [...districts].slice(0, 15).reverse();
 
@@ -162,6 +164,11 @@ export default function DistrictRanking({ districts }: Props) {
                 dataKey="count"
                 radius={[0, 6, 6, 0]}
                 maxBarSize={24}
+                cursor="pointer"
+                onClick={(entry) => {
+                  const d = (entry as unknown as DistrictStat);
+                  router.push(`/analysis/district/${encodeURIComponent(d.district)}`);
+                }}
                 onMouseEnter={(_, index) => {
                   const bars = document.querySelectorAll(
                     "#district-chart .recharts-bar-rectangle"

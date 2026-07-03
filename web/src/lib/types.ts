@@ -106,3 +106,19 @@ export interface AssociationData {
   total_rules: number;
   conclusions?: string;
 }
+
+/** 区县详情 — /api/stats/district/{name} */
+export interface DistrictDetail {
+  district: string;
+  house_count: number;
+  avg_unit_price: number;
+  avg_total_price: number;
+  avg_area: number;
+  max_price: number;
+  min_price: number;
+  decoration_distribution: { type: string; count: number }[];
+  layout_distribution: { rooms: number; count: number }[];
+  price_distribution: { range: string; count: number }[];
+  area_distribution: { range: string; count: number }[];
+  top_communities: { name: string; count: number; avg_price: number }[];
+}

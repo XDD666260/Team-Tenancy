@@ -1,4 +1,4 @@
-import type { OverviewData, PriceDistribution, QuickStats, PredictionData, ClusteringData, AssociationData } from "./types";
+import type { OverviewData, PriceDistribution, QuickStats, PredictionData, ClusteringData, AssociationData, DistrictDetail } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -283,3 +283,74 @@ const MOCK_ASSOCIATION: AssociationData = {
   ],
   conclusions: "面积+地段解释房价84.7%变化；两江新区是12000-18000元/㎡核心区域；低价必小面积(置信度99%)",
 };
+
+// ── 区县详情 API ──
+
+export async function getDistrictDetail(name: string): Promise<DistrictDetail> {
+  const data = await fetchAPI<DistrictDetail>(`/api/stats/district/${encodeURIComponent(name)}`);
+  return data ?? getMockDistrict(name);
+}
+
+function getMockDistrict(name: string): DistrictDetail {
+  const base: Record<string, Partial<DistrictDetail>> = {
+    "渝北区": { house_count: 6842, avg_unit_price: 9520, avg_total_price: 98.5, avg_area: 103.5, max_price: 380, min_price: 22 },
+    "两江新区": { house_count: 3280, avg_unit_price: 12450, avg_total_price: 135.6, avg_area: 108.9, max_price: 520, min_price: 35 },
+    "渝中区": { house_count: 2680, avg_unit_price: 13800, avg_total_price: 152.7, avg_area: 110.6, max_price: 680, min_price: 40 },
+    "江北区": { house_count: 3910, avg_unit_price: 11200, avg_total_price: 118.2, avg_area: 105.2, max_price: 450, min_price: 30 },
+    "沙坪坝区": { house_count: 5120, avg_unit_price: 7830, avg_total_price: 72.1, avg_area: 92.3, max_price: 280, min_price: 18 },
+    "南岸区": { house_count: 4380, avg_unit_price: 8650, avg_total_price: 85.3, avg_area: 98.5, max_price: 320, min_price: 20 },
+    "九龙坡区": { house_count: 3520, avg_unit_price: 7420, avg_total_price: 68.9, avg_area: 93.1, max_price: 260, min_price: 15 },
+    "巴南区": { house_count: 2950, avg_unit_price: 6210, avg_total_price: 58.3, avg_area: 106.5, max_price: 200, min_price: 12 },
+  };
+
+  const d = base[name] || {
+    house_count: 1500, avg_unit_price: 7000, avg_total_price: 70, avg_area: 95,
+    max_price: 250, min_price: 15,
+  };
+
+  return {
+    district: name,
+    house_count: d.house_count!,
+    avg_unit_price: d.avg_unit_price!,
+    avg_total_price: d.avg_total_price!,
+    avg_area: d.avg_area!,
+    max_price: d.max_price!,
+    min_price: d.min_price!,
+    decoration_distribution: [
+      { type: "精装", count: Math.floor(d.house_count! * 0.38) },
+      { type: "简装", count: Math.floor(d.house_count! * 0.28) },
+      { type: "毛坯", count: Math.floor(d.house_count! * 0.18) },
+      { type: "豪装", count: Math.floor(d.house_count! * 0.10) },
+      { type: "中装", count: Math.floor(d.house_count! * 0.06) },
+    ],
+    layout_distribution: [
+      { rooms: 1, count: Math.floor(d.house_count! * 0.08) },
+      { rooms: 2, count: Math.floor(d.house_count! * 0.28) },
+      { rooms: 3, count: Math.floor(d.house_count! * 0.42) },
+      { rooms: 4, count: Math.floor(d.house_count! * 0.16) },
+      { rooms: 5, count: Math.floor(d.house_count! * 0.06) },
+    ],
+    price_distribution: [
+      { range: "50万以下", count: Math.floor(d.house_count! * 0.24) },
+      { range: "50-80万", count: Math.floor(d.house_count! * 0.30) },
+      { range: "80-120万", count: Math.floor(d.house_count! * 0.22) },
+      { range: "120-200万", count: Math.floor(d.house_count! * 0.15) },
+      { range: "200-300万", count: Math.floor(d.house_count! * 0.06) },
+      { range: "300万以上", count: Math.floor(d.house_count! * 0.03) },
+    ],
+    area_distribution: [
+      { range: "60㎡以下", count: Math.floor(d.house_count! * 0.12) },
+      { range: "60-90㎡", count: Math.floor(d.house_count! * 0.32) },
+      { range: "90-120㎡", count: Math.floor(d.house_count! * 0.30) },
+      { range: "120-150㎡", count: Math.floor(d.house_count! * 0.18) },
+      { range: "150㎡以上", count: Math.floor(d.house_count! * 0.08) },
+    ],
+    top_communities: [
+      { name: name + "花园一期", count: 320, avg_price: d.avg_unit_price! * 1.1 },
+      { name: name + "新城国际", count: 280, avg_price: d.avg_unit_price! * 1.3 },
+      { name: "龙湖" + name + "项目", count: 250, avg_price: d.avg_unit_price! * 1.5 },
+      { name: "万科" + name + "中心", count: 210, avg_price: d.avg_unit_price! * 0.9 },
+      { name: "保利" + name + "公馆", count: 180, avg_price: d.avg_unit_price! * 1.2 },
+    ],
+  };
+}
