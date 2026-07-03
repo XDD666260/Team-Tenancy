@@ -1,4 +1,4 @@
-import type { OverviewData, PriceDistribution, QuickStats } from "./types";
+import type { OverviewData, PriceDistribution, QuickStats, PredictionData, ClusteringData, AssociationData } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -100,4 +100,186 @@ const MOCK_QUICK_STATS: QuickStats = {
     { name: "低层", count: 16500 },
     { name: "高层", count: 15807 },
   ],
+};
+
+// ── 预测分析 API ──
+
+export async function getPrediction(): Promise<PredictionData> {
+  const data = await fetchAPI<PredictionData>("/api/analysis/prediction");
+  return data ?? MOCK_PREDICTION;
+}
+
+export async function getClustering(): Promise<ClusteringData> {
+  const data = await fetchAPI<ClusteringData>("/api/analysis/clustering");
+  return data ?? MOCK_CLUSTERING;
+}
+
+export async function getAssociationRules(): Promise<AssociationData> {
+  const data = await fetchAPI<AssociationData>("/api/analysis/association-rules");
+  return data ?? MOCK_ASSOCIATION;
+}
+
+// ── Mock 预测数据 ──
+
+const MOCK_PREDICTION: PredictionData = {
+  models: {
+    RandomForest_total: {
+      model_type: "RandomForest",
+      target: "total_price(万)",
+      train_samples: 37408,
+      test_samples: 9352,
+      train_mae: 18.21,
+      test_mae: 32.83,
+      train_rmse: 28.56,
+      test_rmse: 52.67,
+      train_r2: 0.8321,
+      test_r2: 0.5345,
+      cv_r2_mean: 0.508,
+      cv_r2_std: 0.02,
+      features: [],
+      unit: "万",
+    },
+    RandomForest_unit: {
+      model_type: "RandomForest",
+      target: "unit_price(元/㎡)",
+      train_samples: 37408,
+      test_samples: 9352,
+      train_mae: 1850,
+      test_mae: 3267,
+      train_rmse: 2980,
+      test_rmse: 5120,
+      train_r2: 0.712,
+      test_r2: 0.4023,
+      cv_r2_mean: 0.391,
+      cv_r2_std: 0.02,
+      features: [],
+      unit: "元/㎡",
+    },
+    GradientBoosting_total: {
+      model_type: "GradientBoosting",
+      target: "total_price(万)",
+      train_samples: 37408,
+      test_samples: 9352,
+      train_mae: 19.5,
+      test_mae: 33.03,
+      train_rmse: 30.12,
+      test_rmse: 53.45,
+      train_r2: 0.815,
+      test_r2: 0.5137,
+      cv_r2_mean: 0.488,
+      cv_r2_std: 0.03,
+      features: [],
+      unit: "万",
+    },
+    GradientBoosting_unit: {
+      model_type: "GradientBoosting",
+      target: "unit_price(元/㎡)",
+      train_samples: 37408,
+      test_samples: 9352,
+      train_mae: 1910,
+      test_mae: 3283,
+      train_rmse: 3050,
+      test_rmse: 5180,
+      train_r2: 0.698,
+      test_r2: 0.3797,
+      cv_r2_mean: 0.369,
+      cv_r2_std: 0.03,
+      features: [],
+      unit: "元/㎡",
+    },
+  },
+  feature_importance: {
+    RandomForest_total: [
+      { rank: 1, feature: "area", feature_cn: "面积", importance: 0.337 },
+      { rank: 2, feature: "community_encoded", feature_cn: "小区(均价编码)", importance: 0.255 },
+      { rank: 3, feature: "district_encoded", feature_cn: "区县(均价编码)", importance: 0.255 },
+      { rank: 4, feature: "avg_room_area", feature_cn: "户均面积", importance: 0.069 },
+      { rank: 5, feature: "total_floors", feature_cn: "总楼层", importance: 0.043 },
+      { rank: 6, feature: "bathrooms", feature_cn: "卫", importance: 0.012 },
+      { rank: 7, feature: "rooms", feature_cn: "室", importance: 0.01 },
+      { rank: 8, feature: "house_age", feature_cn: "房龄", importance: 0.008 },
+      { rank: 9, feature: "halls", feature_cn: "厅", importance: 0.005 },
+      { rank: 10, feature: "orientation_code", feature_cn: "朝向", importance: 0.003 },
+      { rank: 11, feature: "decoration_code", feature_cn: "装修", importance: 0.002 },
+      { rank: 12, feature: "floor_type_code", feature_cn: "楼层类型", importance: 0.001 },
+    ],
+    GradientBoosting_total: [
+      { rank: 1, feature: "area", feature_cn: "面积", importance: 0.312 },
+      { rank: 2, feature: "district_encoded", feature_cn: "区县(均价编码)", importance: 0.268 },
+      { rank: 3, feature: "community_encoded", feature_cn: "小区(均价编码)", importance: 0.238 },
+      { rank: 4, feature: "avg_room_area", feature_cn: "户均面积", importance: 0.078 },
+      { rank: 5, feature: "total_floors", feature_cn: "总楼层", importance: 0.051 },
+      { rank: 6, feature: "bathrooms", feature_cn: "卫", importance: 0.018 },
+      { rank: 7, feature: "rooms", feature_cn: "室", importance: 0.014 },
+      { rank: 8, feature: "house_age", feature_cn: "房龄", importance: 0.009 },
+      { rank: 9, feature: "halls", feature_cn: "厅", importance: 0.006 },
+      { rank: 10, feature: "decoration_code", feature_cn: "装修", importance: 0.003 },
+      { rank: 11, feature: "orientation_code", feature_cn: "朝向", importance: 0.002 },
+      { rank: 12, feature: "floor_type_code", feature_cn: "楼层类型", importance: 0.001 },
+    ],
+  },
+};
+
+// ── Mock 聚类数据 ──
+
+const MOCK_CLUSTERING: ClusteringData = {
+  n_clusters: 5,
+  inertia_: 284723.5,
+  silhouette_score: 0.312,
+  cluster_stats: [
+    {
+      cluster_id: 0, count: 12979, pct: 27.7,
+      avg_unit_price: 9245, avg_total_price: 58.0, avg_area: 63.3,
+      avg_rooms: 2.7, avg_house_age: 12,
+      top_districts: { "渝北区": 3210, "沙坪坝区": 2580, "南岸区": 1920 },
+      dominant_decoration: "简装", dominant_floor: "中层",
+    },
+    {
+      cluster_id: 1, count: 17070, pct: 36.4,
+      avg_unit_price: 6481, avg_total_price: 70.9, avg_area: 109.4,
+      avg_rooms: 3.3, avg_house_age: 9,
+      top_districts: { "巴南区": 4120, "北碚区": 3850, "璧山区": 2980 },
+      dominant_decoration: "毛坯", dominant_floor: "高层",
+    },
+    {
+      cluster_id: 2, count: 3367, pct: 7.2,
+      avg_unit_price: 8297, avg_total_price: 80.2, avg_area: 96.7,
+      avg_rooms: 2.9, avg_house_age: 10,
+      top_districts: { "九龙坡区": 890, "大渡口区": 720, "沙坪坝区": 650 },
+      dominant_decoration: "精装", dominant_floor: "中层",
+    },
+    {
+      cluster_id: 3, count: 10720, pct: 22.9,
+      avg_unit_price: 10257, avg_total_price: 131.4, avg_area: 128.1,
+      avg_rooms: 2.6, avg_house_age: 8,
+      top_districts: { "两江新区": 2890, "江北区": 2450, "南岸区": 2100 },
+      dominant_decoration: "豪装", dominant_floor: "中层",
+    },
+    {
+      cluster_id: 4, count: 2624, pct: 5.6,
+      avg_unit_price: 26582, avg_total_price: 283.6, avg_area: 106.7,
+      avg_rooms: 2.9, avg_house_age: 5,
+      top_districts: { "渝中区": 980, "江北区": 720, "两江新区": 450 },
+      dominant_decoration: "豪装", dominant_floor: "高层",
+    },
+  ],
+};
+
+// ── Mock 关联规则数据 ──
+
+const MOCK_ASSOCIATION: AssociationData = {
+  total_rules: 50,
+  rules: [
+    { antecedents: "单价12000-18000 + 面积90-120㎡", consequents: "两江新区 + 总价120-200万", support: 0.023, confidence: 0.53, lift: 7.33 },
+    { antecedents: "单价12000-18000 + 面积90-120㎡", consequents: "总价120-200万 + 3室", support: 0.024, confidence: 0.56, lift: 7.12 },
+    { antecedents: "单价8000-12000 + 总价<50万", consequents: "面积<60㎡", support: 0.024, confidence: 0.99, lift: 6.82 },
+    { antecedents: "区县=武隆区 + 总价<50万", consequents: "南向 + 面积<60㎡", support: 0.027, confidence: 0.66, lift: 6.72 },
+    { antecedents: "单价12000-18000 + 面积90-120㎡", consequents: "总价120-200万", support: 0.039, confidence: 0.92, lift: 6.34 },
+    { antecedents: "两江新区 + 单价12000-18000 + 面积90-120㎡", consequents: "总价120-200万", support: 0.023, confidence: 0.91, lift: 6.31 },
+    { antecedents: "单价12000-18000 + 面积90-120㎡", consequents: "总价120-200万 + 南向", support: 0.029, confidence: 0.68, lift: 6.16 },
+    { antecedents: "总价120-200万 + 面积90-120㎡", consequents: "单价12000-18000 + 3室", support: 0.024, confidence: 0.45, lift: 5.97 },
+    { antecedents: "房龄5-10年", consequents: "南向 + anjuke来源", support: 0.026, confidence: 0.86, lift: 5.92 },
+    { antecedents: "面积60-90㎡", consequents: "单价8000-12000", support: 0.079, confidence: 0.31, lift: 2.86 },
+  ],
+  conclusions: "面积+地段解释房价84.7%变化；两江新区是12000-18000元/㎡核心区域；低价必小面积(置信度99%)",
 };

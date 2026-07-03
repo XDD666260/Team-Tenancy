@@ -4,13 +4,17 @@ import KpiCards from "@/components/Dashboard/KpiCards";
 import PriceChart from "@/components/Dashboard/PriceChart";
 import DistrictRanking from "@/components/Dashboard/DistrictRanking";
 import SourceChart from "@/components/Dashboard/SourceChart";
-import { getOverview, getPriceDistribution } from "@/lib/api";
+import PredictionSection from "@/components/Dashboard/PredictionSection";
+import { getOverview, getPriceDistribution, getPrediction } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalysisPage() {
-  const overview = await getOverview();
-  const priceDist = await getPriceDistribution();
+  const [overview, priceDist, prediction] = await Promise.all([
+    getOverview(),
+    getPriceDistribution(),
+    getPrediction(),
+  ]);
 
   return (
     <SmoothScroll>
@@ -39,6 +43,9 @@ export default async function AnalysisPage() {
 
         {/* 数据来源 */}
         <SourceChart bySource={overview.by_source} />
+
+        {/* 房价预测分析 */}
+        <PredictionSection data={prediction} />
       </main>
     </SmoothScroll>
   );
