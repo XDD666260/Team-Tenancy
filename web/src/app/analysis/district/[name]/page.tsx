@@ -3,31 +3,30 @@ import Link from "next/link";
 import SmoothScroll from "@/components/SmoothScroll";
 import DistrictDetailClient from "@/components/Dashboard/DistrictDetailClient";
 
-// 区县列表（与 analysis page 的 by_district 一致）
-const KNOWN_DISTRICTS = [
-  "两江新区", "渝北区", "江北区", "沙坪坝区", "南岸区",
-  "渝中区", "九龙坡区", "巴南区", "北碚区", "大渡口区",
-  "璧山区", "江津区", "长寿区", "合川区", "永川区",
-];
+// 中文→拼音 slug 映射
+const DISTRICT_SLUG: Record<string, string> = {
+  "两江新区": "liangjiang", "渝北区": "yubei", "江北区": "jiangbei",
+  "沙坪坝区": "shapingba", "南岸区": "nanan", "渝中区": "yuzhong",
+  "九龙坡区": "jiulongpo", "巴南区": "banan", "北碚区": "beibei",
+  "大渡口区": "dadukou", "璧山区": "bishan", "江津区": "jiangjin",
+  "长寿区": "changshou", "合川区": "hechuan", "永川区": "yongchuan",
+};
+const SLUG_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(DISTRICT_SLUG).map(([k, v]) => [v, k])
+);
 
 export function generateStaticParams() {
-  // Next.js 静态导出：params 值需与 router.push 的 URL 路径段一致
-  return KNOWN_DISTRICTS.map((name) => ({ name }));
+  return Object.values(DISTRICT_SLUG).map((slug) => ({ name: slug }));
 }
 
-interface Props {
-  params: Promise<{ name: string }>;
-}
+interface Props { params: Promise<{ name: string }> }
 
 export default async function DistrictDetailPage({ params }: Props) {
   const { name } = await params;
-  // params.name 已被 Next.js 自动解码
+  const districtName = SLUG_TO_NAME[name];
+  if (!districtName) notFound();
 
-  if (!KNOWN_DISTRICTS.includes(name)) {
-    notFound();
-  }
-
-  const dummyDetail = getDistrictDummy(name);
+  const d = getDistrictDummy(districtName);
 
   return (
     <SmoothScroll>
@@ -41,19 +40,20 @@ export default async function DistrictDetailPage({ params }: Props) {
             ← 返回仪表盘
           </Link>
         </div>
-        <DistrictDetailClient detail={dummyDetail} />
+        <DistrictDetailClient detail={d} />
       </main>
     </SmoothScroll>
   );
 }
 
+// 内置兜底数据
 function getDistrictDummy(name: string) {
   const base: Record<string, { count: number; unit: number; total: number; area: number; max: number; min: number }> = {
+    "两江新区": { count: 7320, unit: 12450, total: 135.6, area: 108.9, max: 520, min: 35 },
     "渝北区": { count: 6842, unit: 9520, total: 98.5, area: 103.5, max: 380, min: 22 },
-    "两江新区": { count: 3280, unit: 12450, total: 135.6, area: 108.9, max: 520, min: 35 },
-    "渝中区": { count: 2680, unit: 13800, total: 152.7, area: 110.6, max: 680, min: 40 },
-    "江北区": { count: 3910, unit: 11200, total: 118.2, area: 105.2, max: 450, min: 30 },
-    "沙坪坝区": { count: 5120, unit: 7830, total: 72.1, area: 92.3, max: 280, min: 18 },
+    "江北区": { count: 5120, unit: 11200, total: 118.2, area: 105.2, max: 450, min: 30 },
+    "渝中区": { count: 3950, unit: 13800, total: 152.7, area: 110.6, max: 680, min: 40 },
+    "沙坪坝区": { count: 4910, unit: 7830, total: 72.1, area: 92.3, max: 280, min: 18 },
     "南岸区": { count: 4380, unit: 8650, total: 85.3, area: 98.5, max: 320, min: 20 },
     "九龙坡区": { count: 3520, unit: 7420, total: 68.9, area: 93.1, max: 260, min: 15 },
     "巴南区": { count: 2950, unit: 6210, total: 58.3, area: 106.5, max: 200, min: 12 },

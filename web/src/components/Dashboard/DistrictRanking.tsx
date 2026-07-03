@@ -42,6 +42,15 @@ interface Props {
   districts: DistrictStat[];
 }
 
+// 中文→拼音 slug
+const DISTRICT_SLUG: Record<string, string> = {
+  "两江新区": "liangjiang", "渝北区": "yubei", "江北区": "jiangbei",
+  "沙坪坝区": "shapingba", "南岸区": "nanan", "渝中区": "yuzhong",
+  "九龙坡区": "jiulongpo", "巴南区": "banan", "北碚区": "beibei",
+  "大渡口区": "dadukou", "璧山区": "bishan", "江津区": "jiangjin",
+  "长寿区": "changshou", "合川区": "hechuan", "永川区": "yongchuan",
+};
+
 export default function DistrictRanking({ districts }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const initialized = useRef(false);
@@ -142,7 +151,8 @@ export default function DistrictRanking({ districts }: Props) {
                 cursor="pointer"
                 onClick={(entry) => {
                   const d = (entry as unknown as DistrictStat);
-                  router.push(`/analysis/district/${d.district}`);
+                  const slug = DISTRICT_SLUG[d.district] || d.district;
+                  router.push(`/analysis/district/${slug}`);
                 }}
                 onMouseEnter={(_, index) => {
                   const bars = document.querySelectorAll(
