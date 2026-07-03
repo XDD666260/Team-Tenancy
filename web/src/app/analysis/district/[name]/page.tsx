@@ -21,18 +21,18 @@ export default async function DistrictDetailPage({ params }: Props) {
 
   return (
     <SmoothScroll>
-      <main className="min-h-screen bg-bg-dark">
+      <main style={{ background: "var(--bg-primary)", minHeight: "100vh" }}>
         {/* 返回导航 */}
-        <div className="mx-auto max-w-4xl px-4 pt-6 sm:px-6">
+        <div className="mx-auto max-w-4xl px-6 pt-8 sm:px-8">
           <Link
             href="/analysis"
-            className="inline-flex items-center gap-2 text-sm font-light transition-colors duration-300 hover:opacity-70"
-            style={{ color: "#aaaaaa" }}
+            className="tag inline-flex items-center gap-2"
+            style={{ padding: "8px 18px", fontSize: 13 }}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
-            返回数据仪表盘
+            ← 返回仪表盘
           </Link>
         </div>
 
