@@ -1,24 +1,44 @@
 import SmoothScroll from "@/components/SmoothScroll";
+import DashboardHero from "@/components/Dashboard/DashboardHero";
+import KpiCards from "@/components/Dashboard/KpiCards";
+import PriceChart from "@/components/Dashboard/PriceChart";
+import DistrictRanking from "@/components/Dashboard/DistrictRanking";
+import SourceChart from "@/components/Dashboard/SourceChart";
+import { getOverview, getPriceDistribution } from "@/lib/api";
 
-export default function AnalysisPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AnalysisPage() {
+  const overview = await getOverview();
+  const priceDist = await getPriceDistribution();
+
   return (
     <SmoothScroll>
-      <main className="flex min-h-screen items-center justify-center bg-bg-dark">
-        <div className="text-center">
-          <h1 className="text-3xl font-light tracking-wider text-white">
-            数据分析
-          </h1>
-          <p
-            className="mt-4 text-lg font-light"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            数据概览与可视化图表即将呈现…
-          </p>
-          <div
-            className="mx-auto mt-8 h-0.5 w-24 rounded-full"
-            style={{ background: "var(--color-mint)" }}
-          />
-        </div>
+      <main className="min-h-screen bg-bg-dark">
+        {/* Hero Banner */}
+        <DashboardHero updateTime={overview.update_time} />
+
+        {/* KPI 指标卡片 */}
+        <KpiCards
+          totalHouses={overview.total_houses}
+          avgUnitPrice={overview.avg_unit_price}
+          avgTotalPrice={overview.avg_total_price}
+          maxUnitPrice={overview.max_unit_price}
+          minUnitPrice={overview.min_unit_price}
+          districtCount={overview.district_count}
+        />
+
+        {/* 价格分布图 */}
+        <PriceChart
+          unitPriceBins={priceDist.unit_price_bins}
+          totalPriceBins={priceDist.total_price_bins}
+        />
+
+        {/* 区县排名 */}
+        <DistrictRanking districts={overview.by_district} />
+
+        {/* 数据来源 */}
+        <SourceChart bySource={overview.by_source} />
       </main>
     </SmoothScroll>
   );
