@@ -4,6 +4,3 @@
 
 [build.environment]
   NEXT_PUBLIC_API_URL = ""
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
