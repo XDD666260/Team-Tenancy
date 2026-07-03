@@ -83,10 +83,7 @@ export default function Hero() {
       <section
         ref={sectionRef}
         className="relative flex h-screen flex-col items-center justify-center overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(160deg, #0a0a14 0%, #141a30 30%, #1e2a4a 60%, #1a1430 100%)",
-        }}
+        style={{ background: "#000000" }}
       >
         {/* [FIX-4] 柔和径向光晕 — 标题后方焦点 */}
         <div
