@@ -3,15 +3,16 @@ import Link from "next/link";
 import SmoothScroll from "@/components/SmoothScroll";
 import DistrictDetailClient from "@/components/Dashboard/DistrictDetailClient";
 
-// 预生成的区县列表
+// 区县列表（与 analysis page 的 by_district 一致）
 const KNOWN_DISTRICTS = [
-  "渝北区", "沙坪坝区", "南岸区", "江北区", "九龙坡区",
-  "两江新区", "巴南区", "渝中区", "北碚区", "大渡口区",
+  "两江新区", "渝北区", "江北区", "沙坪坝区", "南岸区",
+  "渝中区", "九龙坡区", "巴南区", "北碚区", "大渡口区",
   "璧山区", "江津区", "长寿区", "合川区", "永川区",
 ];
 
 export function generateStaticParams() {
-  return KNOWN_DISTRICTS.map((name) => ({ name: encodeURIComponent(name) }));
+  // Next.js 静态导出：params 值需与 router.push 的 URL 路径段一致
+  return KNOWN_DISTRICTS.map((name) => ({ name }));
 }
 
 interface Props {
@@ -20,14 +21,13 @@ interface Props {
 
 export default async function DistrictDetailPage({ params }: Props) {
   const { name } = await params;
-  const decoded = decodeURIComponent(name);
+  // params.name 已被 Next.js 自动解码
 
-  if (!KNOWN_DISTRICTS.includes(decoded)) {
+  if (!KNOWN_DISTRICTS.includes(name)) {
     notFound();
   }
 
-  // 静态构建时用内置数据
-  const dummyDetail = getDistrictDummy(decoded);
+  const dummyDetail = getDistrictDummy(name);
 
   return (
     <SmoothScroll>
