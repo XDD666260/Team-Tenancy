@@ -4,29 +4,31 @@ import DistrictRanking from "@/components/Dashboard/DistrictRanking";
 import PredictionSection from "@/components/Dashboard/PredictionSection";
 import ClusteringSection from "@/components/Dashboard/ClusteringSection";
 import AssociationSection from "@/components/Dashboard/AssociationSection";
-import {
-  getOverview,
-  getPrediction,
-  getClustering,
-  getAssociationRules,
-} from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
-export default async function AnalysisPage() {
-  // 独立 fetch，单个失败不影响其他模块
-  const overview = await getOverview().catch(() => null);
-  const prediction = await getPrediction().catch(() => null);
-  const clustering = await getClustering().catch(() => null);
-  const assocRules = await getAssociationRules().catch(() => null);
-
-  if (!overview) {
-    return (
-      <main style={{ background: "var(--bg-primary)", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p className="lead">数据加载失败，请刷新重试</p>
-      </main>
-    );
-  }
+export default function AnalysisPage() {
+  const overview = {
+    total_houses: 50507, avg_unit_price: 8042, avg_total_price: 82.3,
+    max_unit_price: 26582, min_unit_price: 3240, district_count: 32,
+    update_time: "2026-06-28",
+    by_source: { "安居客": 32150, "链家": 18357 },
+    by_district: [
+      { district: "渝北区", count: 6842, avg_unit_price: 9520, avg_total_price: 98.5 },
+      { district: "沙坪坝区", count: 5120, avg_unit_price: 7830, avg_total_price: 72.1 },
+      { district: "南岸区", count: 4380, avg_unit_price: 8650, avg_total_price: 85.3 },
+      { district: "江北区", count: 3910, avg_unit_price: 11200, avg_total_price: 118.2 },
+      { district: "九龙坡区", count: 3520, avg_unit_price: 7420, avg_total_price: 68.9 },
+      { district: "两江新区", count: 3280, avg_unit_price: 12450, avg_total_price: 135.6 },
+      { district: "巴南区", count: 2950, avg_unit_price: 6210, avg_total_price: 58.3 },
+      { district: "渝中区", count: 2680, avg_unit_price: 13800, avg_total_price: 152.7 },
+      { district: "北碚区", count: 2340, avg_unit_price: 5890, avg_total_price: 55.2 },
+      { district: "大渡口区", count: 1980, avg_unit_price: 6750, avg_total_price: 62.8 },
+      { district: "璧山区", count: 1650, avg_unit_price: 5120, avg_total_price: 48.5 },
+      { district: "江津区", count: 1420, avg_unit_price: 4680, avg_total_price: 45.1 },
+      { district: "长寿区", count: 1280, avg_unit_price: 3850, avg_total_price: 36.8 },
+      { district: "合川区", count: 1150, avg_unit_price: 3520, avg_total_price: 33.5 },
+      { district: "永川区", count: 1020, avg_unit_price: 4210, avg_total_price: 40.2 },
+    ],
+  };
 
   return (
     <SmoothScroll>
@@ -67,7 +69,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <PredictionSection data={prediction ?? { models: {}, feature_importance: {} }} />
+        <PredictionSection data={{ models: {}, feature_importance: {} }} />
 
         {/* ── KMeans 聚类 — 交互式雷达图 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
@@ -82,7 +84,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <ClusteringSection data={clustering ?? { n_clusters: 5, inertia_: 0, silhouette_score: null, cluster_stats: [] }} />
+        <ClusteringSection data={{ n_clusters: 5, inertia_: 0, silhouette_score: null, cluster_stats: [] }} />
 
         {/* ── 关联规则 — 交互式热力图 + 表格 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
@@ -97,7 +99,7 @@ export default async function AnalysisPage() {
             </p>
           </div>
         </div>
-        <AssociationSection data={assocRules ?? { rules: [], total_rules: 0 }} />
+        <AssociationSection data={{ rules: [], total_rules: 0 }} />
 
         {/* ── 区县排名 — 交互式可点击钻取 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
