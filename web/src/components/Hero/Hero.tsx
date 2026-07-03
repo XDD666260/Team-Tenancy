@@ -131,13 +131,20 @@ export default function Hero() {
         </Link>
       </div>
 
-      {/* [UI-OPTIMIZE] 向下滚动 — CSS 动画箭头 */}
-      <div className="absolute bottom-10 z-10 flex flex-col items-center gap-2 opacity-45">
-        <span className="text-xs tracking-[0.2em]" style={{ color: "var(--color-text-hint)" }}>
+      {/* 向下滚动提示 — CSS 动画箭头（inline style 确保颜色可见） */}
+      <div className="absolute bottom-12 z-10 flex flex-col items-center gap-3">
+        <span className="text-xs tracking-[0.2em]" style={{ color: "#aaaaaa" }}>
           向下滚动
         </span>
-        <svg className="scroll-arrow-anim h-4 w-4" fill="none" stroke="var(--color-mint)" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        <svg
+          className="scroll-arrow-anim h-5 w-5"
+          fill="none"
+          stroke="#94ddde"
+          strokeWidth={1.5}
+          viewBox="0 0 24 24"
+          style={{ stroke: "#94ddde" }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       </div>
     </section>

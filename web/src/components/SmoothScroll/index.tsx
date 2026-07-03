@@ -1,38 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Lenis from "lenis";
+import { useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default function SmoothScroll({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const lenisRef = useRef<Lenis | null>(null);
-
+/**
+ * 轻量滚动容器 — 仅注册 GSAP ScrollTrigger 刷新
+ * 不再使用 Lenis，改用浏览器原生 scroll-behavior: smooth
+ */
+export default function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    });
+    // 监听原生滚动，同步刷新 ScrollTrigger
+    const onScroll = () => ScrollTrigger.update();
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-    lenisRef.current = lenis;
-
-    // 将 Lenis 的滚动同步给 GSAP ScrollTrigger
-    lenis.on("scroll", ScrollTrigger.update);
-    gsap.ticker.add((time: number) => {
-      lenis.raf(time * 1000);
+    // 刷新 GSAP ticker 以支持 ScrollTrigger
+    const tick = gsap.ticker.add(() => {
+      ScrollTrigger.update();
     });
-    gsap.ticker.lagSmoothing(0);
 
     return () => {
-      lenis.destroy();
-      gsap.ticker.remove(() => {});
+      window.removeEventListener("scroll", onScroll);
+      gsap.ticker.remove(tick);
       ScrollTrigger.getAll().forEach((t) => t.kill());
     };
   }, []);
