@@ -86,7 +86,7 @@ export default function ClusteringSection({ data }: Props) {
         </div>
 
         {/* ═══ 雷达图 — 修复点③: data-testid + loading 占位 ═══ */}
-        <div className="glass-card p-6 sm:p-8" data-testid="radar-chart">
+        <div className="card-dark p-6 sm:p-8" data-testid="radar-chart">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             五类画像雷达图
@@ -139,7 +139,7 @@ export default function ClusteringSection({ data }: Props) {
         </div>
 
         {/* ═══ 市场结构金字塔 ═══ */}
-        <div className="glass-card p-6 sm:p-8" data-testid="pyramid-chart">
+        <div className="card-dark p-6 sm:p-8" data-testid="pyramid-chart">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             市场结构洞察
@@ -223,7 +223,7 @@ function ClusterCard({ cluster, index }: { cluster: ClusterStat; index: number }
   const name = CLUSTER_NAMES[index];
 
   return (
-    <div className="glass-card group p-5 transition-all duration-300"
+    <div className="card-dark group p-5 transition-all duration-300"
       style={{ borderTop: `2px solid ${color}` }}>
       <div className="mb-3 flex items-center gap-2">
         <span className="inline-block h-2 w-2 rounded-full"

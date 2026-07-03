@@ -49,7 +49,7 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
   return (
     <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
       {/* [UI-OPTIMIZE] 磨砂玻璃容器 */}
-      <div className="glass-card">
+      <div className="card-dark">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="heading-md mb-1" style={{ color: "#ffffff" }}>

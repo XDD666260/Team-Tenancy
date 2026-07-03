@@ -139,7 +139,7 @@ function KpiCard({ label, value, suffix, desc, accent, glowClass }: KpiItem) {
 
   return (
     <div
-      className="kpi-card glass-card group relative cursor-default"
+      className="kpi-card card-dark group relative cursor-default"
       style={{ padding: 24, transition: "all 0.35s ease" }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}

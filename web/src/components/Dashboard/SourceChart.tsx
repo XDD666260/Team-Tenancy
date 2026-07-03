@@ -54,7 +54,7 @@ export default function SourceChart({ bySource }: Props) {
 
   return (
     <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-28 sm:px-6 lg:px-8">
-      <div className="glass-card p-6 sm:p-8">
+      <div className="card-dark p-6 sm:p-8">
         <h2
           className="mb-8 text-lg font-medium tracking-wider sm:text-xl"
           style={{

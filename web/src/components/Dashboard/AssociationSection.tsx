@@ -100,7 +100,7 @@ export default function AssociationSection({ data }: Props) {
         </div>
 
         {/* ═══ 热力图 — 修复点③: data-testid + 空数据提示 ═══ */}
-        <div className="glass-card p-6 sm:p-8" data-testid="heatmap-chart">
+        <div className="card-dark p-6 sm:p-8" data-testid="heatmap-chart">
           <h3 className="mb-1 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             规则分布热力图
@@ -155,7 +155,7 @@ export default function AssociationSection({ data }: Props) {
         </div>
 
         {/* ═══ TOP 10 表格 — 修复点④: 规则内容 + 橙色进度条 ═══ */}
-        <div className="glass-card overflow-x-auto p-6 sm:p-8" data-testid="rules-table">
+        <div className="card-dark overflow-x-auto p-6 sm:p-8" data-testid="rules-table">
           <h3 className="mb-6 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             TOP 10 高提升度规则
@@ -181,7 +181,7 @@ export default function AssociationSection({ data }: Props) {
         </div>
 
         {/* ═══ 关键发现 ═══ */}
-        <div className="glass-card p-6 sm:p-8" data-testid="findings-cards">
+        <div className="card-dark p-6 sm:p-8" data-testid="findings-cards">
           <h3 className="mb-4 text-base font-medium tracking-wider"
             style={{ fontFamily: '"PingFang SC","Noto Sans SC",sans-serif', fontWeight: 500 }}>
             关键发现
