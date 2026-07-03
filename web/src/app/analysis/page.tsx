@@ -6,16 +6,18 @@ import DistrictRanking from "@/components/Dashboard/DistrictRanking";
 import SourceChart from "@/components/Dashboard/SourceChart";
 import PredictionSection from "@/components/Dashboard/PredictionSection";
 import ClusteringSection from "@/components/Dashboard/ClusteringSection";
-import { getOverview, getPriceDistribution, getPrediction, getClustering } from "@/lib/api";
+import AssociationSection from "@/components/Dashboard/AssociationSection";
+import { getOverview, getPriceDistribution, getPrediction, getClustering, getAssociationRules } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalysisPage() {
-  const [overview, priceDist, prediction, clustering] = await Promise.all([
+  const [overview, priceDist, prediction, clustering, assocRules] = await Promise.all([
     getOverview(),
     getPriceDistribution(),
     getPrediction(),
     getClustering(),
+    getAssociationRules(),
   ]);
 
   return (
@@ -51,6 +53,9 @@ export default async function AnalysisPage() {
 
         {/* KMeans 聚类画像 */}
         <ClusteringSection data={clustering} />
+
+        {/* 关联规则挖掘 */}
+        <AssociationSection data={assocRules} />
       </main>
     </SmoothScroll>
   );
