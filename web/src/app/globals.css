@@ -3,183 +3,89 @@
 @tailwind utilities;
 
 /* ============================================
-   [UI-OPTIMIZE] Design Token — 重庆房价洞察 v2
-   灵感来源: Apple / Shift5 / Awwwards
+   Shift5-inspired Design System — 重庆房价洞察 v3
+   关键词: 黑白主导 / 极简 / 数据叙事 / 排版节奏
    ============================================ */
 :root {
-  /* 主色 */
-  --color-primary: #2b4b82;
-  --color-primary-rgb: 43, 75, 130;
-  --color-primary-bright: #4a90e2;
-
-  /* 辅助深紫 */
-  --color-deep-purple: #392752;
-  --color-deep-purple-rgb: 57, 39, 82;
-
-  /* 脏紫系 */
-  --color-dust-purple: #6e426a;
-  --color-dust-purple-mid: #a0637f;
-  --color-dust-purple-light: #ce8992;
-
-  /* 点缀 */
-  --color-pink-light: #f7b4a7;
-  --color-pink-soft: #f0abc1;
-  --color-mint: #94ddde;
-  --color-mint-rgb: 148, 221, 222;
-
-  /* 背景 & 文字 */
-  --color-bg-start: #0f172a;
-  --color-bg-mid: #1e1b4b;
-  --color-bg-end: #2d1b69;
-  --color-text: #ffffff;
-  --color-text-secondary: #cccccc;
-  --color-text-hint: #aaaaaa;
-
-  /* [UI-OPTIMIZE] 毛玻璃 v3 */
-  --glass-bg: rgba(255, 255, 255, 0.04);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: blur(20px) saturate(150%);
-
-  /* [UI-OPTIMIZE] 发光 */
-  --glow-pink: 0 0 10px rgba(247, 180, 167, 0.3);
-  --glow-blue: 0 0 10px rgba(43, 75, 130, 0.35);
-  --glow-mint: 0 0 10px rgba(148, 221, 222, 0.3);
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #0d0d0d;
+  --bg-elevated: #111111;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-accent: rgba(255,255,255,0.15);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255,255,255,0.65);
+  --text-tertiary: rgba(255,255,255,0.40);
+  --accent-blue: #2b4b82;
+  --accent-pink: #f7b4a7;
+  --accent-mint: #94ddde;
 }
 
 /* ============================================
-   [UI-OPTIMIZE] 全局基础
+   全局
    ============================================ */
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
-  margin: 0;
-  padding: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #2d1b69 100%);
-  color: var(--color-text);
-  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+  margin: 0; padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "PingFang SC","Noto Sans SC","Helvetica Neue",sans-serif;
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  min-height: 100vh;
 }
 
-/* ============================================
-   [UI-OPTIMIZE] Lenis 平滑滚动
-   ============================================ */
+/* Lenis */
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: clip; }
 
 /* ============================================
-   [UI-OPTIMIZE] 组件工具类
+   排版工具类 — Shift5 层级
    ============================================ */
 @layer components {
-  /* 毛玻璃卡片 — 苹果级层次感 */
-  .glass-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    transition: all 0.35s ease;
+  /* 卡片 */
+  .card-dark {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 40px;
+    transition: border-color 0.35s ease;
   }
-  .glass-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(148, 221, 222, 0.18);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 24px rgba(148, 221, 222, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  .card-dark:hover { border-color: var(--border-default); }
+
+  /* 标题 */
+  .h1 { font-size: clamp(36px,6vw,64px); font-weight: 400; line-height: 1.08; letter-spacing: -0.02em; }
+  .h2 { font-size: clamp(24px,4vw,40px); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; }
+  .h3 { font-size: 18px; font-weight: 500; line-height: 1.3; letter-spacing: 0.01em; }
+  .h4 { font-size: 14px; font-weight: 500; line-height: 1.4; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); }
+
+  /* 正文 */
+  .lead { font-size: 18px; line-height: 1.55; color: var(--text-secondary); font-weight: 300; }
+  .body { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
+  .caption { font-size: 12px; line-height: 1.5; color: var(--text-tertiary); font-weight: 300; }
+
+  /* 标签 */
+  .tag {
+    display: inline-block; padding: 6px 14px;
+    border: 1px solid var(--border-default); border-radius: 100px;
+    font-size: 12px; font-weight: 400; color: var(--text-secondary);
+    background: var(--bg-elevated); letter-spacing: 0.04em;
   }
 
-  /* [UI-OPTIMIZE] 标题层级 */
-  .heading-xl {
-    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-    font-weight: 500;
-    font-size: 48px;
-    line-height: 1.15;
-    letter-spacing: 0.02em;
-  }
-  .heading-lg {
-    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-    font-weight: 500;
-    font-size: 28px;
-    line-height: 1.2;
-    letter-spacing: 0.02em;
-  }
-  .heading-md {
-    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-    font-weight: 500;
-    font-size: 20px;
-    line-height: 1.3;
-  }
-  .subtitle {
-    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas", monospace;
-    font-weight: 400;
-    font-size: 16px;
-    line-height: 1.5;
-    color: var(--color-text-secondary);
-  }
-  .body-text {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-  }
+  /* 数字 */
+  .stat-number { font-size: clamp(40px,8vw,72px); font-weight: 300; line-height: 1; letter-spacing: -0.03em; }
+  .stat-label { font-size: 14px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.1em; }
 
-  /* [UI-OPTIMIZE] 关键数字发光 */
-  .num-glow-pink {
-    color: var(--color-pink-light);
-    font-weight: 600;
-    text-shadow: var(--glow-pink);
-  }
-  .num-glow-blue {
-    color: var(--color-primary-bright);
-    font-weight: 600;
-    text-shadow: var(--glow-blue);
-  }
-  .num-glow-mint {
-    color: var(--color-mint);
-    font-weight: 600;
-    text-shadow: var(--glow-mint);
-  }
-
-  /* [UI-OPTIMIZE] 等宽数字 */
-  .font-mono-data {
-    font-family: "SF Mono", "JetBrains Mono", "Roboto Mono", "Consolas", monospace;
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* [UI-OPTIMIZE] 胶囊按钮 */
-  .btn-capsule {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 28px;
-    border-radius: 999px;
-    font-size: 15px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: var(--color-text);
-    backdrop-filter: blur(10px);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none;
-  }
-  .btn-capsule:hover {
-    transform: scale(1.05);
-    background: rgba(43, 75, 130, 0.25);
-    border-color: rgba(148, 221, 222, 0.4);
-    box-shadow: 0 0 28px rgba(148, 221, 222, 0.18), 0 8px 24px rgba(0, 0, 0, 0.3);
-  }
+  /* 分割线 */
+  .hr { width: 100%; height: 1px; background: var(--border-subtle); border: none; margin: 0; }
 }
 
 /* ============================================
-   [UI-OPTIMIZE] Recharts Tooltip 深色覆盖
+   Recharts Tooltip
    ============================================ */
 .recharts-tooltip-wrapper .recharts-tooltip-label,
 .recharts-tooltip-wrapper .recharts-tooltip-item,
@@ -187,42 +93,17 @@ html.lenis, html.lenis body { height: auto; }
 .recharts-tooltip-wrapper .recharts-tooltip-item-name,
 .recharts-tooltip-wrapper .recharts-tooltip-item-value,
 .recharts-tooltip-wrapper .recharts-tooltip-item-separator {
-  color: #ffffff !important;
-  font-weight: 300;
-}
-.recharts-tooltip-wrapper .recharts-tooltip-label {
-  color: #aaaaaa !important;
-  font-size: 12px;
-  margin-bottom: 4px;
+  color: #ffffff !important; font-weight: 300;
 }
 
 /* ============================================
-   [UI-OPTIMIZE] Intersection Observer 动画
+   滚动动画
    ============================================ */
-.animate-in {
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-up {
+  animation: fadeUp 0.7s ease forwards;
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
-}
-.animate-in.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* [UI-OPTIMIZE] 交错动画延迟 */
-.stagger-1 { transition-delay: 0ms; }
-.stagger-2 { transition-delay: 80ms; }
-.stagger-3 { transition-delay: 160ms; }
-.stagger-4 { transition-delay: 240ms; }
-.stagger-5 { transition-delay: 320ms; }
-
-/* ============================================
-   [UI-OPTIMIZE] 向下滚动箭头动画
-   ============================================ */
-@keyframes scroll-arrow {
-  0%, 100% { transform: translateY(0); opacity: 0.3; }
-  50% { transform: translateY(6px); opacity: 0.7; }
-}
-.scroll-arrow-anim {
-  animation: scroll-arrow 2s ease-in-out infinite;
 }

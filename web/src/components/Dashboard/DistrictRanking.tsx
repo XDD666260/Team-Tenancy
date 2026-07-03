@@ -71,8 +71,8 @@ export default function DistrictRanking({ districts }: Props) {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
-      <div className="glass-card p-6 sm:p-8">
+    <section ref={sectionRef} className="relative pb-[10px]">
+      <div>
         <div className="mb-8 flex items-center justify-between">
           <h2
             className="text-lg font-medium tracking-wider sm:text-xl"

@@ -67,7 +67,7 @@ export default function Hero() {
   return (
     <section ref={sectionRef}
       className="relative flex h-screen flex-col items-center justify-center overflow-hidden"
-      style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #2d1b69 100%)" }}>
+      style={{ background: "var(--bg-primary)" }}>
 
       {/* [UI-OPTIMIZE] 三层径向光晕 */}
       <div ref={glowRef} className="pointer-events-none absolute inset-0 opacity-35"
