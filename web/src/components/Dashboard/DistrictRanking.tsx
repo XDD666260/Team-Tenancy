@@ -14,6 +14,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import ChartTooltip from "./ChartTooltip";
 import type { DistrictStat } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -71,16 +72,7 @@ export default function DistrictRanking({ districts }: Props) {
 
   return (
     <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
-      <div
-        className="p-6 sm:p-8"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 16,
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
+      <div className="glass-card p-6 sm:p-8">
         <div className="mb-8 flex items-center justify-between">
           <h2
             className="text-lg font-medium tracking-wider sm:text-xl"
@@ -140,25 +132,8 @@ export default function DistrictRanking({ districts }: Props) {
                 }}
               />
               <Tooltip
-                contentStyle={{
-                  background: "rgba(18,18,30,0.96)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 12,
-                  backdropFilter: "blur(16px)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 300,
-                  padding: "12px 16px",
-                }}
+                content={<ChartTooltip />}
                 cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                formatter={(value, _name, props) => {
-                  const v = Number(value);
-                  const d = props.payload as DistrictStat;
-                  return [
-                    `${v.toLocaleString("zh-CN")} 套`,
-                    `${d.district} · 均价 ¥${d.avg_unit_price.toLocaleString("zh-CN")}/㎡`,
-                  ];
-                }}
               />
               <Bar
                 dataKey="count"

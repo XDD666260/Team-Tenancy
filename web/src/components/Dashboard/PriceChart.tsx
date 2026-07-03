@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import ChartTooltip from "./ChartTooltip";
 import type { PriceBin } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -64,16 +65,7 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
 
   return (
     <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-[30px] sm:px-6 lg:px-8">
-      <div
-        className="p-6 sm:p-8"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 16,
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
+      <div className="glass-card p-6 sm:p-8">
         {/* 标题行 + 胶囊切换 */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2
@@ -159,21 +151,8 @@ export default function PriceChart({ unitPriceBins, totalPriceBins }: Props) {
                 }
               />
               <Tooltip
-                contentStyle={{
-                  background: "rgba(18,18,30,0.96)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 12,
-                  backdropFilter: "blur(16px)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 300,
-                  padding: "12px 16px",
-                }}
+                content={<ChartTooltip />}
                 cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                formatter={(value) => {
-                  const v = Number(value);
-                  return [v.toLocaleString("zh-CN") + " 套", "房源数量"];
-                }}
               />
               <Bar
                 dataKey="count"

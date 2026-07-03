@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import ChartTooltip from "./ChartTooltip";
 import type { PredictionData, ModelResult, FeatureImportanceItem } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -135,15 +136,7 @@ export default function PredictionSection({ data }: Props) {
                   axisLine={false} tickLine={false} width={110}
                   tick={{ fill: "#cccccc", fontSize: 13, fontWeight: 300 }}
                 />
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(18,18,30,0.96)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 12, backdropFilter: "blur(16px)",
-                    color: "#fff", fontSize: 13, fontWeight: 300,
-                  }}
-                  formatter={(value) => [`${Number(value).toFixed(2)}%`]}
-                />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="RF" radius={[0, 4, 4, 0]} maxBarSize={18}>
                   {features.map((_, i) => (
                     <Cell key={`rf-${i}`} fill={FEATURE_COLORS[0]} fillOpacity={0.8} />

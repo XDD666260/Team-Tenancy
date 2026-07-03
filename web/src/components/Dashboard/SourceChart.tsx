@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ChartTooltip from "./ChartTooltip";
 import {
   PieChart,
   Pie,
@@ -53,16 +54,7 @@ export default function SourceChart({ bySource }: Props) {
 
   return (
     <section ref={sectionRef} className="relative mx-auto max-w-6xl px-4 pb-28 sm:px-6 lg:px-8">
-      <div
-        className="p-6 sm:p-8"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 16,
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
+      <div className="glass-card p-6 sm:p-8">
         <h2
           className="mb-8 text-lg font-medium tracking-wider sm:text-xl"
           style={{
@@ -127,25 +119,7 @@ export default function SourceChart({ bySource }: Props) {
                     总房源
                   </tspan>
                 </text>
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(18,18,30,0.96)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 12,
-                    backdropFilter: "blur(16px)",
-                    color: "#fff",
-                    fontSize: 13,
-                    fontWeight: 300,
-                    padding: "12px 16px",
-                  }}
-                  formatter={(value) => {
-                    const v = Number(value);
-                    return [
-                      `${v.toLocaleString("zh-CN")} 条 (${((v / total) * 100).toFixed(1)}%)`,
-                      "",
-                    ];
-                  }}
-                />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>

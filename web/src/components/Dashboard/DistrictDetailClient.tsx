@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie,
 } from "recharts";
+import ChartTooltip from "./ChartTooltip";
 import type { DistrictDetail } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -61,7 +62,7 @@ export default function DistrictDetailClient({ detail }: { detail: DistrictDetai
                   tick={{ fill: "#aaaaaa", fontSize: 10, fontWeight: 300 }} />
                 <YAxis axisLine={false} tickLine={false}
                   tick={{ fill: "#aaaaaa", fontSize: 10, fontWeight: 300 }} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
                   {detail.price_distribution.map((_, i) => (
                     <Cell key={i} fill={BAR_COLORS[i]} fillOpacity={0.8} />
@@ -79,7 +80,7 @@ export default function DistrictDetailClient({ detail }: { detail: DistrictDetai
                   tick={{ fill: "#aaaaaa", fontSize: 10, fontWeight: 300 }} />
                 <YAxis axisLine={false} tickLine={false}
                   tick={{ fill: "#aaaaaa", fontSize: 10, fontWeight: 300 }} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
                   {detail.area_distribution.map((_, i) => (
                     <Cell key={i} fill={BAR_COLORS[i]} fillOpacity={0.8} />
@@ -104,7 +105,7 @@ export default function DistrictDetailClient({ detail }: { detail: DistrictDetai
                         <Cell key={i} fill={DONUT_COLORS[i]} fillOpacity={0.8} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip content={<ChartTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -129,7 +130,7 @@ export default function DistrictDetailClient({ detail }: { detail: DistrictDetai
                   tickFormatter={(v: number) => v + "室"} />
                 <YAxis axisLine={false} tickLine={false}
                   tick={{ fill: "#aaaaaa", fontSize: 10, fontWeight: 300 }} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value) => [Number(value).toLocaleString("zh-CN") + " 套"]} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={40}>
                   {detail.layout_distribution.map((_, i) => (
                     <Cell key={i} fill={BAR_COLORS[i]} fillOpacity={0.8} />
@@ -197,12 +198,3 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-const tooltipStyle = {
-  background: "rgba(18,18,30,0.96)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 12,
-  backdropFilter: "blur(16px)",
-  color: "#fff",
-  fontSize: 13,
-  fontWeight: 300,
-};

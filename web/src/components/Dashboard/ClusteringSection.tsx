@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import ChartTooltip from "./ChartTooltip";
 import type { ClusteringData, ClusterStat } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -101,12 +102,7 @@ export default function ClusteringSection({ data }: Props) {
                   tick={{ fill: "#aaaaaa", fontSize: 12, fontWeight: 300 }} />
                 <YAxis axisLine={false} tickLine={false}
                   tick={{ fill: "#aaaaaa", fontSize: 11, fontWeight: 300 }} />
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(18,18,30,0.96)", border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 12, backdropFilter: "blur(16px)", color: "#fff", fontSize: 13, fontWeight: 300,
-                  }}
-                />
+                <Tooltip content={<ChartTooltip />} />
                 {clusters.map((c) => (
                   <Bar key={c.cluster_id} dataKey={`聚类${c.cluster_id}`}
                     radius={[4, 4, 0, 0]} maxBarSize={32}>
