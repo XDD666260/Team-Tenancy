@@ -38,12 +38,16 @@ export default function AnalysisPage() {
         <div className="mx-auto max-w-6xl px-6 pt-28 sm:px-8 lg:px-10">
           <span className="tag mb-6">Dashboard</span>
           <h1 className="h1 mb-4" style={{ color: "var(--text-primary)" }}>
-            重庆二手房<br />数据洞察
+            2026重庆二手房<br />数据洞察
           </h1>
           <p className="lead max-w-2xl">
-            基于 <span style={{ color: "var(--accent-pink)" }}>50,507</span> 条真实在售房源数据，
+            基于 <span style={{ color: "var(--accent-pink)" }}>50,507</span> 条房源数据，
             覆盖重庆 <span style={{ color: "var(--accent-mint)" }}>30+</span> 个区县，
             运用机器学习方法深度剖析市场结构与价格规律。
+          </p>
+          <p className = "lead teamNumber">
+            学年设计第36小组：胡霖、王宇、解金明
+
           </p>
         </div>
 
