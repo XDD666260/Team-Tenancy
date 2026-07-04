@@ -56,17 +56,9 @@ def _env(key, default=''):
 
 # Cookie（从浏览器复制，过期需更新；生产环境请设环境变量）
 _ANJUKE_COOKIE_DEFAULT = (
-    "aQQ_ajkguid=F7B4D023-2524-4E8F-9FA7-FB4B466A414A; "
-    "sessid=0ADC5D26-DE20-42FC-B1C9-C3DF9A7CCDFF; "
-    "ctid=20; twe=2; "
-    "id58=uVcyWmonw3RqSxvUFwlTAg==; "
-    "xxzlclientid=9e9f197b-4ac8-4fe0-b525-1780990835353; "
-    "xxzlxxid=pfmx9YPrZMngaMg5IB8XhLUfiXG951fL3E4v4TYV7zQvgVqboAu0QQrrHcrCK6A494Dv; "
-    "obtain_by=1; "
-    "xxzlbbid=pfmbRKBxxeD3YHkVphZEbLbECGY88YcxPCZhssNIWgvpz4AO42cfftjxMxNqnl1aj3FA0uuvA2o4JqOELhIcA39PPcXOTmlLH5l8ZMpQVITrEg4/kx43I5oeFZyh7qazWzHnt7p0hgExNzgxMDg3NTM3MzMwNDAy_1; "
-    "fzq_h=f8e2b59bb392b6e1f0cf822f12516317_1781087662383_ec260a0137dc4b4693351482f40131d5_47901724934887724844252811768033755437; "
-    "fzq_js_anjuke_ershoufang_pc=f2c9d58d02b287e6e913925d1edf5950_1781087661950_25"
-)
+"aQQ_ajkguid=F7B4D023-2524-4E8F-9FA7-FB4B466A414A; sessid=0ADC5D26-DE20-42FC-B1C9-C3DF9A7CCDFF; ajk-appVersion=; ctid=20; id58=uVcyWmonw3RqSxvUFwlTAg==; xxzlclientid=9e9f197b-4ac8-4fe0-b525-1780990835353; xxzlxxid=pfmx9YPrZMngaMg5IB8XhLUfiXG951fL3E4v4TYV7zQvgVqboAu0QQrrHcrCK6A494Dv; wmda_uuid=b437387b8712d4bdd346301f93d8dd69; wmda_new_uuid=1; wmda_visited_projects=%3B6289197098934; fzq_h=1577c2cad1194274cda86fd4a6fcdca1_1783154596128_914c4e3e829944adbe73a7cbe0d59835_47901724934847785907590631820825004708; twe=2; obtain_by=1; xxzlbbid=pfmbRNCfHhZ+hmtopClXJkxyg7ZdM3ldKKqpia9aRFXhKiKaTQRGSh0YApSbwb356vMCxje0aaBK1pz6bPLy059bdAbgJvzJSzOl3tPA9U0Z1zDyAAZmheRSxPGWvGi2NQUnNjBr8SUxNzgzMTY0NDY1Mjg0MjEz_1; fzq_js_anjuke_ershoufang_pc=e81e9e61e94f000b4392297b700268e4_1783164694368_23"
+
+    )
 
 _LIANJIA_COOKIE_DEFAULT = (
     "lianjia_uuid=84e647ad-44a3-4621-873d-fe484a1cfa17; "
@@ -380,7 +372,7 @@ ANJUKE_CSV_KEYS = [
     'address', 'lng', 'lat', 'layout', 'rooms', 'halls', 'bathrooms',
     'area', 'orientation', 'decoration', 'floor_desc', 'floor_type',
     'total_floors', 'build_year', 'tags', 'followers', 'source',
-    'source_id', 'fingerprint',
+    'source_id', 'fingerprint', 'image_url',
 ]
 
 LIANJIA_CSV_KEYS = [

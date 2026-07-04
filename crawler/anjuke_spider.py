@@ -8,7 +8,86 @@ import os
 import re
 import time
 import random
+import threading
 
+# ============================================================
+# ★ 单IP全局速率控制 + 紧急熔断 + 监控（模块级，所有线程共享）
+# ============================================================
+# -- 全局速率限制器：确保任意两个 safe_get 之间至少间隔 MIN_GAP 秒 --
+_RATE_LOCK = threading.Lock()
+_LAST_REQUEST_TS = 0.0
+_MIN_REQUEST_GAP = 2.0        # IP 级最小请求间隔（秒）
+_REQUEST_COUNT = 0             # 总请求计数器
+_ERROR_COUNT_403 = 0           # 403 计数器（用于熔断）
+_CONSECUTIVE_403 = 0           # 连续 403 计数
+_FUSE_BLOWN = False            # 熔断标志
+_FUSE_UNTIL = 0.0              # 熔断恢复时间戳
+_MONITOR_START = 0.0           # 监控起始时间
+_COOKIE_PAGE_COUNT = 0          # 当前 Cookie 累计翻页数（模块级，跨区县共享）
+_COOKIE_PAGE_LIMIT = 200        # 单 Cookie 翻页上限，超限后建议换 Cookie
+
+def _rate_limit():
+    """在每次 safe_get 前调用，确保全局请求间隔。"""
+    global _LAST_REQUEST_TS, _REQUEST_COUNT
+    with _RATE_LOCK:
+        now = time.time()
+        gap = _LAST_REQUEST_TS + _MIN_REQUEST_GAP - now
+        if gap > 0:
+            time.sleep(gap)
+        _LAST_REQUEST_TS = time.time()
+        _REQUEST_COUNT += 1
+
+def _check_fuse():
+    """检查熔断状态：若熔断中则阻塞等待直到恢复。"""
+    global _FUSE_BLOWN, _FUSE_UNTIL
+    while _FUSE_BLOWN:
+        remaining = _FUSE_UNTIL - time.time()
+        if remaining <= 0:
+            with _RATE_LOCK:
+                _FUSE_BLOWN = False
+                _FUSE_UNTIL = 0.0
+            print(f'\n[FUSE] 熔断恢复，继续爬取...')
+            return
+        print(f'[FUSE] 熔断中，剩余 {remaining:.0f}s ...')
+        time.sleep(min(remaining, 30))
+
+def _report_403():
+    """收到 403 时调用，累计并判断是否触发熔断。"""
+    global _ERROR_COUNT_403, _CONSECUTIVE_403, _FUSE_BLOWN, _FUSE_UNTIL
+    with _RATE_LOCK:
+        _ERROR_COUNT_403 += 1
+        _CONSECUTIVE_403 += 1
+        if _CONSECUTIVE_403 >= 5 and not _FUSE_BLOWN:
+            _FUSE_BLOWN = True
+            _FUSE_UNTIL = time.time() + 1800  # 30分钟冷却
+            print(f'\n[FUSE] ⚡ 连续 {_CONSECUTIVE_403} 次 403！触发熔断，冷却 30 分钟...')
+
+def _clear_consecutive_403():
+    """请求成功时调用，重置连续 403 计数器。"""
+    global _CONSECUTIVE_403
+    with _RATE_LOCK:
+        _CONSECUTIVE_403 = 0
+
+def _emergency_stop():
+    """检查是否存在紧急停止信号文件。"""
+    stop_file = os.path.join(os.path.dirname(__file__), '..', 'STOP_CRAWL.txt')
+    return os.path.exists(stop_file)
+
+def _monitor_thread(stats_dict):
+    """后台监控线程：每 5 分钟输出统计。"""
+    while not stats_dict.get('done', False):
+        time.sleep(300)  # 5 分钟
+        with _RATE_LOCK:
+            elapsed = time.time() - _MONITOR_START
+            rpm = (_REQUEST_COUNT / elapsed * 60) if elapsed > 0 else 0
+        print(f'\n[MON] ⏱ 运行 {elapsed/60:.0f}min | '
+            f'请求 {_REQUEST_COUNT} 次 ({rpm:.1f}/min) | '
+            f'Cookie翻页 {_COOKIE_PAGE_COUNT}/{_COOKIE_PAGE_LIMIT} | '
+            f'采集 {stats_dict.get("total", 0)} 条 | '
+            f'403累计 {_ERROR_COUNT_403} 次 | '
+            f'熔断 {"是" if _FUSE_BLOWN else "否"}')
+          
+          
 # 确保项目根目录在 sys.path 中，支持直接 python crawler/xxx.py 运行
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -138,6 +217,15 @@ def parse_house_info(item):
         house.setdefault('total_floors', 0)
         house.setdefault('build_year', 0)
 
+    # --- 列表页缩略图（安居客图片服务，去裁剪参数=原图） ---
+    try:
+        img = item.select_one('img')
+        if img:
+            src = img.get('src') or img.get('data-src') or ''
+            house['image_url'] = re.sub(r'\?.*$', '', src) if src else ''
+    except Exception:
+        house['image_url'] = ''
+
     # --- 默认值 ---
     house.setdefault('id', '')
     house.setdefault('tags', '')
@@ -204,19 +292,16 @@ def get_anjuke_detail(session, house_id, timeout=15):
 # 区县爬取
 # ============================================================
 
-def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
-    """爬取一个区县，支持断点续爬和自动容错
+def crawl_district(
+        code, name, max_pages=50, 
+        resume=True, 
+        fetch_details=False, 
+        delay_multiplier = 1.0):
 
-    Args:
-        code: 安居客区县拼音编码
-        name: 中文名
-        max_pages: 最大爬取页数
-        resume: 是否断点续爬
-        fetch_details: 是否进详情页获取装修和经纬度
+    global _COOKIE_PAGE_COUNT  # 模块级 Cookie 翻页计数器
 
-    Returns:
-        list[dict]: 房源数据列表
-    """
+    THREAD_SEMAPHORE = threading.Semaphore(3)  # 全局最多3个区县同时请求
+
     all_data = []
     session = create_session(ANJUKE_COOKIE, USER_AGENTS_DESKTOP, BASE_HEADERS_DESKTOP)
 
@@ -257,8 +342,16 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
             else:
                 base_delay = random.uniform(12, 25)
             delay = base_delay * random.uniform(0.7, 1.3)
+            delay *= delay_multiplier
             print(f'  [T] 等待 {delay:.1f}s ...')
             time.sleep(delay)
+
+        # ★ 全局速率控制 + 熔断检查 + 紧急停止（每次请求前）
+        _rate_limit()
+        _check_fuse()
+        if _emergency_stop():
+            print(f'\n[STOP] 检测到 STOP_CRAWL.txt，退出爬取')
+            break
 
         # 请求页面
         try:
@@ -272,12 +365,28 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
 
         print(f'  状态码: {resp.status_code}  长度: {len(resp.text)}')
 
+        # ★ 安全验证页面检测（安居客 JS 挑战 / 滑块验证）
+        # 特征：200 状态码 + <title>安全验证</title> + ~5KB 大小
+        if '<title>安全验证</title>' in resp.text or 'antibot' in resp.text[:500]:
+            print(f'  [SEC] ⚡ 触发安全验证！Cookie 被标记，暂停本区县')
+            _report_403()
+            _check_fuse()
+            save_checkpoint('anjuke', code, pages_done, pages_failed)
+            print(f'  [SEC] 建议：浏览器重新登录安居客，复制新 Cookie 到环境变量 ANJUKE_COOKIE')
+            print(f'  [SEC] 当前区县 {name} 已保存断点，换 Cookie 后重新运行即可续爬')
+            _COOKIE_PAGE_COUNT = _COOKIE_PAGE_LIMIT  # 强制触发翻页上限，快速结束本轮
+            time.sleep(random.uniform(60, 120))
+            session = refresh_session(session)
+            break  # 停止本区县
+
         # 状态码异常处理
         if resp.status_code == 404:
             print(f'  404 — 没有更多页面，停止')
             break
         if resp.status_code == 403:
             print(f'  403 — 被禁止访问，冷却后继续...')
+            _report_403()
+            _check_fuse()     # 若刚触发熔断，等30分钟再继续
             time.sleep(random.uniform(30, 60))
             session = refresh_session(session)
             continue
@@ -286,7 +395,7 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
             session = refresh_session(session)
             continue
 
-        # 空页面判断
+        # 空页面判断（< 2KB 基本不是正常列表页）
         if len(resp.text) < 2000:
             print(f'  响应内容过短({len(resp.text)})，可能被拦截，冷却后重试...')
             time.sleep(random.uniform(20, 40))
@@ -348,6 +457,18 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
             all_data.append(house)
             page_count += 1
 
+        # ★ 成功解析到有效房源 → 重置连续403计数 + 累计Cookie翻页
+        if page_count > 0:
+            _clear_consecutive_403()
+            _COOKIE_PAGE_COUNT += 1
+
+        # ★ Cookie 翻页上限检查（避免单Cookie请求过多触发安全验证）
+        if _COOKIE_PAGE_COUNT >= _COOKIE_PAGE_LIMIT:
+            print(f'  [LIMIT] Cookie 已翻 {_COOKIE_PAGE_COUNT} 页（上限 {_COOKIE_PAGE_LIMIT}），'
+                  f'建议换 Cookie 后重新运行')
+            save_checkpoint('anjuke', code, pages_done, pages_failed)
+            break
+
         print(f'  [{name}] 本页有效 {page_count} 条，累计 {len(all_data)} 条')
 
         # 保存断点
@@ -379,38 +500,181 @@ def crawl_district(code, name, max_pages=50, resume=True, fetch_details=True):
     return all_data
 
 
-# ============================================================
-# 主流程
-# ============================================================
-
 if __name__ == '__main__':
-    all_houses = []
+    # ======================== 区县分级 ========================
+    MAJOR_DISTRICTS = {
+        '两江新区', '渝中区', '南岸区', '沙坪坝区', '九龙坡区',
+        '巴南区', '北碚区', '大渡口区', '渝北区',
+    }
+    MID_DISTRICTS = {
+        '璧山区', '永川区', '万州区', '江津区', '合川区',
+        '铜梁区', '涪陵区', '长寿区', '綦江区', '荣昌区',
+    }
 
+    def get_max_pages(name):
+        if name in MAJOR_DISTRICTS: return 50
+        elif name in MID_DISTRICTS: return 35
+        else: return 20
+
+    def get_tier(name):
+        if name in MAJOR_DISTRICTS: return '主城'
+        elif name in MID_DISTRICTS: return '近郊'
+        else: return '远郊'
+
+    def is_csv_exists(name):
+        csv_path = os.path.join(OUTPUT_DIR, f'anjuke_m_{name}.csv')
+        return os.path.exists(csv_path)
+
+    # ======================== 核心参数 ========================
+    DELAY_MULTIPLIER = 1.5
+
+    # ======================== 构建区县状态列表 ========================
+    district_list = []
     for code, name in ANJUKE_DISTRICTS:
-        print(f'\n{"=" * 50}')
-        print(f'开始爬取安居客 {name}...')
-        print(f'{"=" * 50}')
+        cp = load_checkpoint('anjuke', code)
+        pages_done = len(cp.get('pages_done', []))
+        has_csv = is_csv_exists(name)
+        if has_csv:
+            status = '✓ 已完成'
+        elif pages_done > 0:
+            status = f'↻ 断点({pages_done}页)'
+        else:
+            status = '○ 未爬'
+        district_list.append({
+            'code': code, 'name': name,
+            'tier': get_tier(name),
+            'max_p': get_max_pages(name),
+            'status': status,
+            'has_csv': has_csv,
+            'pages_done': pages_done,
+        })
 
-        data = crawl_district(code, name, max_pages=150, resume=True)
-        all_houses.extend(data)
+    # ======================== 启动 ========================
+    print('=' * 60)
+    print('安居客重庆二手房 — 交互模式')
+    print(f'  延迟倍率: {DELAY_MULTIPLIER}× | Cookie翻页上限: {_COOKIE_PAGE_LIMIT}页')
+    print('=' * 60)
 
-        # 每区保存
-        if data:
-            output_path = os.path.join(OUTPUT_DIR, f'anjuke_{name}.csv')
-            save_csv(data, output_path, ANJUKE_CSV_KEYS)
-            print(f'  已保存 {output_path}')
+    while True:
+        # ---- 打印区县列表 ----
+        print(f'\n{"─" * 55}')
+        print(f'{"#":<4} {"区县":<10} {"分级":<6} {"上限":<6} {"状态"}')
+        print(f'{"─" * 55}')
+        for i, d in enumerate(district_list):
+            print(f'{i+1:<4} {d["name"]:<10} {d["tier"]:<6} {d["max_p"]}页{"":>3} {d["status"]}')
+        print(f'{"─" * 55}')
+        done_count = sum(1 for d in district_list if d['has_csv'])
+        pending_count = len(district_list) - done_count
+        print(f'已完成 {done_count}/{len(district_list)}，待爬 {pending_count}')
 
-        # 区间冷却
-        wait = random.uniform(5, 12)
-        print(f'  区间冷却 {wait:.1f}s ...')
-        time.sleep(wait)
+        # ---- 用户输入 ----
+        print(f'\n输入区县编号或名称（如 "5" 或 "沙坪坝区"），多个用逗号分隔')
+        print(f'输入 "all" 顺序爬所有未完成的')
+        print(f'输入 "q" 退出')
+        raw = input('> ').strip()
 
-    # 汇总去重
-    print(f'\n{"=" * 50}')
-    print(f'安居客全部完成！共 {len(all_houses)} 条')
-    print(f'{"=" * 50}')
+        if raw.lower() == 'q':
+            print('退出。')
+            break
 
-    if all_houses:
-        merged_path = os.path.join(OUTPUT_DIR, 'anjuke_all.csv')
-        unique, count = deduplicate_and_save(all_houses, merged_path, ANJUKE_CSV_KEYS)
-        print(f'去重后 {count} 条 → {merged_path}')
+        # ---- 解析输入 ----
+        if raw.lower() == 'all':
+            targets = [d for d in district_list if not d['has_csv']]
+            if not targets:
+                print('所有区县已完成！')
+                continue
+        else:
+            targets = []
+            for part in raw.split(','):
+                part = part.strip()
+                if part.isdigit():
+                    idx = int(part) - 1
+                    if 0 <= idx < len(district_list):
+                        targets.append(district_list[idx])
+                    else:
+                        print(f'  编号 {part} 无效，跳过')
+                else:
+                    found = [d for d in district_list if d['name'] == part]
+                    if found:
+                        targets.append(found[0])
+                    else:
+                        print(f'  区县 "{part}" 未找到，跳过')
+
+        if not targets:
+            print('没有有效的爬取目标，请重新输入。')
+            continue
+
+        # 去重：如果已经完成，询问是否重爬
+        already_done = [t for t in targets if t['has_csv']]
+        if already_done:
+            names = ', '.join(d['name'] for d in already_done)
+            ans = input(f'  {names} 已有数据，重新爬取？(y/n): ').strip().lower()
+            if ans != 'y':
+                targets = [t for t in targets if not t['has_csv']]
+                if not targets:
+                    print('没有剩余目标。')
+                    continue
+
+        # ---- 顺序爬取 ----
+        print(f'\n本次爬取: {", ".join(t["name"] for t in targets)}')
+        _MONITOR_START = time.time()
+        monitor = threading.Thread(target=_monitor_thread, args=({'total': 0, 'done': False},), daemon=True)
+        monitor.start()
+
+        all_houses = []
+
+        for i, target in enumerate(targets):
+            code, name, max_p = target['code'], target['name'], target['max_p']
+
+            if i > 0:
+                cool = random.uniform(20, 60)
+                print(f'\n[COOL] 区县间冷却 {cool:.0f}s ...')
+                time.sleep(cool)
+
+            print(f'\n{"=" * 50}')
+            print(f'[{i+1}/{len(targets)}] 开始爬取 {name} ({get_tier(name)}, max {max_p} 页)')
+            print(f'{"=" * 50}')
+
+            try:
+                data = crawl_district(
+                    code, name,
+                    max_pages=max_p,
+                    resume=True,
+                    fetch_details=False,
+                    delay_multiplier=DELAY_MULTIPLIER,
+                )
+            except Exception as e:
+                print(f'[{name}] 异常: {type(e).__name__}: {e}')
+                continue
+
+            if data:
+                output_path = os.path.join(OUTPUT_DIR, f'anjuke_m_{name}.csv')
+                save_csv(data, output_path, ANJUKE_CSV_KEYS)
+                all_houses.extend(data)
+                target['has_csv'] = True
+                target['status'] = f'✓ 已完成({len(data)}条)'
+                print(f'[{name}] 保存 {len(data)} 条 → 累计 {len(all_houses)} 条')
+            else:
+                target['status'] = '○ 无数据'
+                print(f'[{name}] 无数据')
+
+            # Cookie 翻页上限
+            if _COOKIE_PAGE_COUNT >= _COOKIE_PAGE_LIMIT:
+                print(f'\n[LIMIT] Cookie 已翻 {_COOKIE_PAGE_COUNT} 页，达上限。请换 Cookie 后继续。')
+                break
+
+            # 安全验证
+            if _FUSE_BLOWN:
+                print(f'\n[FUSE] 熔断中，停止本轮。')
+                break
+
+        # ---- 本轮汇总 ----
+        elapsed = time.time() - _MONITOR_START
+        print(f'\n本轮完成: {len(all_houses)} 条 | 耗时 {elapsed/60:.1f}min | '
+              f'Cookie翻页 {_COOKIE_PAGE_COUNT}/{_COOKIE_PAGE_LIMIT} | 403: {_ERROR_COUNT_403}次')
+        if all_houses:
+            merged_path = os.path.join(OUTPUT_DIR, 'anjuke_all.csv')
+            unique, count = deduplicate_and_save(all_houses, merged_path, ANJUKE_CSV_KEYS)
+            print(f'去重后 {count} 条 → {merged_path}')
+
+        print()  # 空行，准备下一轮输入
