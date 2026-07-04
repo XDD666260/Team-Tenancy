@@ -23,10 +23,10 @@ export default function Home() {
                 className="stat-number text-3xl sm:text-4xl"
                 style={{ color: "var(--text-primary)" }}
               >
-                50,507
+                五万余条
               </p>
               <p className="body mt-2">
-                条真实在售房源，覆盖安居客和链家两大平台
+                二手房数据，覆盖安居客和链家两大平台
               </p>
             </div>
             <div>
@@ -47,7 +47,7 @@ export default function Home() {
                 className="stat-number text-3xl sm:text-4xl"
                 style={{ color: "var(--text-primary)" }}
               >
-                30+
+                39
               </p>
               <p className="body mt-2">
                 个重庆区县，从渝中核心到远郊区县全面覆盖

@@ -162,9 +162,9 @@ export default function Hero() {
           >
             基于{" "}
             <strong style={{ color: "#f7b4a7", fontWeight: 600 }}>
-              50,507
+              五万余条
             </strong>{" "}
-            条真实二手房数据 · 机器学习驱动分析 · 数据驱动决策
+            二手房数据 · 机器学习驱动分析 · 数据驱动决策
           </p>
 
           {/* [FIX-7] 升级版胶囊按钮 */}

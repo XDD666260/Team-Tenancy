@@ -19,11 +19,11 @@ const CLUSTER_NAMES = ["🏠 紧凑刚需型", "🏘️ 远郊大户型", "🏡 
 
 /** 内置硬兜底数据 — 保证雷达图始终有数据可渲染 */
 const FALLBACK_CLUSTERS: ClusterStat[] = [
-  { cluster_id: 0, count: 12979, pct: 27.7, avg_unit_price: 9245, avg_total_price: 58.0, avg_area: 63.3, avg_rooms: 2.7, avg_house_age: 12, top_districts: {}, dominant_decoration: "简装", dominant_floor: "中层" },
-  { cluster_id: 1, count: 17070, pct: 36.4, avg_unit_price: 6481, avg_total_price: 70.9, avg_area: 109.4, avg_rooms: 3.3, avg_house_age: 9, top_districts: {}, dominant_decoration: "毛坯", dominant_floor: "高层" },
-  { cluster_id: 2, count: 3367, pct: 7.2, avg_unit_price: 8297, avg_total_price: 80.2, avg_area: 96.7, avg_rooms: 2.9, avg_house_age: 10, top_districts: {}, dominant_decoration: "精装", dominant_floor: "中层" },
-  { cluster_id: 3, count: 10720, pct: 22.9, avg_unit_price: 10257, avg_total_price: 131.4, avg_area: 128.1, avg_rooms: 2.6, avg_house_age: 8, top_districts: {}, dominant_decoration: "豪装", dominant_floor: "中层" },
-  { cluster_id: 4, count: 2624, pct: 5.6, avg_unit_price: 26582, avg_total_price: 283.6, avg_area: 106.7, avg_rooms: 2.9, avg_house_age: 5, top_districts: {}, dominant_decoration: "豪装", dominant_floor: "高层" },
+  { cluster_id: 0, count: 5144, pct: 10.7, avg_unit_price: 8758, avg_total_price: 82.1, avg_area: 93.8, avg_rooms: 2.8, avg_house_age: 11, top_districts: {}, dominant_decoration: "精装", dominant_floor: "中层" },
+  { cluster_id: 1, count: 7366, pct: 15.3, avg_unit_price: 17579, avg_total_price: 199.1, avg_area: 116.6, avg_rooms: 2.9, avg_house_age: 12, top_districts: {}, dominant_decoration: "豪装", dominant_floor: "高层" },
+  { cluster_id: 2, count: 13494, pct: 28.0, avg_unit_price: 9046, avg_total_price: 59.4, avg_area: 66.7, avg_rooms: 2.8, avg_house_age: 12, top_districts: {}, dominant_decoration: "简装", dominant_floor: "中层" },
+  { cluster_id: 3, count: 13914, pct: 28.9, avg_unit_price: 6175, avg_total_price: 67.2, avg_area: 107.7, avg_rooms: 3.2, avg_house_age: 12, top_districts: {}, dominant_decoration: "毛坯", dominant_floor: "高层" },
+  { cluster_id: 4, count: 8282, pct: 17.2, avg_unit_price: 7793, avg_total_price: 90.8, avg_area: 117.8, avg_rooms: 2.5, avg_house_age: 12, top_districts: {}, dominant_decoration: "精装", dominant_floor: "中层" },
 ];
 
 interface Props { data: ClusteringData }

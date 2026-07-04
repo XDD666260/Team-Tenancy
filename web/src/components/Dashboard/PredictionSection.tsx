@@ -54,10 +54,10 @@ const FALLBACK_FI = {
 };
 
 const FALLBACK_MODELS: Record<string, ModelResult> = {
-  RandomForest_total: { model_type:"RandomForest", target:"total_price(万)", train_samples:37408, test_samples:9352, train_mae:18.21, test_mae:32.83, train_rmse:28.56, test_rmse:52.67, train_r2:0.8321, test_r2:0.5345, cv_r2_mean:0.508, cv_r2_std:0.02, features:[], unit:"万" },
-  RandomForest_unit: { model_type:"RandomForest", target:"unit_price(元/㎡)", train_samples:37408, test_samples:9352, train_mae:1850, test_mae:3267, train_rmse:2980, test_rmse:5120, train_r2:0.712, test_r2:0.4023, cv_r2_mean:0.391, cv_r2_std:0.02, features:[], unit:"元/㎡" },
-  GradientBoosting_total: { model_type:"GradientBoosting", target:"total_price(万)", train_samples:37408, test_samples:9352, train_mae:19.5, test_mae:33.03, train_rmse:30.12, test_rmse:53.45, train_r2:0.815, test_r2:0.5137, cv_r2_mean:0.488, cv_r2_std:0.03, features:[], unit:"万" },
-  GradientBoosting_unit: { model_type:"GradientBoosting", target:"unit_price(元/㎡)", train_samples:37408, test_samples:9352, train_mae:1910, test_mae:3283, train_rmse:3050, test_rmse:5180, train_r2:0.698, test_r2:0.3797, cv_r2_mean:0.369, cv_r2_std:0.03, features:[], unit:"元/㎡" },
+  RandomForest_total: { model_type:"RandomForest", target:"total_price(万)", train_samples:38560, test_samples:9640, train_mae:23.94, test_mae:29.73, train_rmse:36.69, test_rmse:45.73, train_r2:0.6743, test_r2:0.4896, cv_r2_mean:0.4723, cv_r2_std:0.0106, features:[], unit:"万" },
+  RandomForest_unit: { model_type:"RandomForest", target:"unit_price(元/㎡)", train_samples:38560, test_samples:9640, train_mae:2595, test_mae:3000, train_rmse:3744, test_rmse:4329, train_r2:0.5088, test_r2:0.308, cv_r2_mean:0.3004, cv_r2_std:0.0105, features:[], unit:"元/㎡" },
+  GradientBoosting_total: { model_type:"GradientBoosting", target:"total_price(万)", train_samples:38560, test_samples:9640, train_mae:26.87, test_mae:29.89, train_rmse:39.5, test_rmse:45.71, train_r2:0.6224, test_r2:0.4899, cv_r2_mean:0.4721, cv_r2_std:0.0078, features:[], unit:"万" },
+  GradientBoosting_unit: { model_type:"GradientBoosting", target:"unit_price(元/㎡)", train_samples:38560, test_samples:9640, train_mae:2743, test_mae:3029, train_rmse:3857, test_rmse:4365, train_r2:0.4785, test_r2:0.2964, cv_r2_mean:0.2885, cv_r2_std:0.0108, features:[], unit:"元/㎡" },
 };
 
 interface Props { data: PredictionData }

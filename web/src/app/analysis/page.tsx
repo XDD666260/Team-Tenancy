@@ -1,34 +1,78 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import SmoothScroll from "@/components/SmoothScroll";
 import StatsHero from "@/components/Dashboard/StatsHero";
 import DistrictRanking from "@/components/Dashboard/DistrictRanking";
 import PredictionSection from "@/components/Dashboard/PredictionSection";
 import ClusteringSection from "@/components/Dashboard/ClusteringSection";
 import AssociationSection from "@/components/Dashboard/AssociationSection";
+import type { OverviewData, PredictionData, ClusteringData } from "@/lib/types";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/* ── 兜底数据（后端不可用时展示） ── */
+const FALLBACK_OVERVIEW: OverviewData = {
+  total_houses: 54993,
+  avg_unit_price: 8426,
+  avg_total_price: 84.5,
+  max_unit_price: 26582,
+  min_unit_price: 3240,
+  district_count: 39,
+  update_time: "2026-07",
+  by_source: { anjuke: 12225, lianjia: 526, augmented: 42242 },
+  by_district: [],
+};
 
 export default function AnalysisPage() {
-  const overview = {
-    total_houses: 50507, avg_unit_price: 8042, avg_total_price: 82.3,
-    max_unit_price: 26582, min_unit_price: 3240, district_count: 32,
-    update_time: "2026-06-28",
-    by_source: { "安居客": 32150, "链家": 18357 },
-    by_district: [
-      { district: "两江新区", count: 7320, avg_unit_price: 12450, avg_total_price: 135.6 },
-      { district: "渝北区", count: 6842, avg_unit_price: 9520, avg_total_price: 98.5 },
-      { district: "江北区", count: 5120, avg_unit_price: 11200, avg_total_price: 118.2 },
-      { district: "沙坪坝区", count: 4910, avg_unit_price: 7830, avg_total_price: 72.1 },
-      { district: "南岸区", count: 4380, avg_unit_price: 8650, avg_total_price: 85.3 },
-      { district: "渝中区", count: 3950, avg_unit_price: 13800, avg_total_price: 152.7 },
-      { district: "九龙坡区", count: 3520, avg_unit_price: 7420, avg_total_price: 68.9 },
-      { district: "巴南区", count: 2950, avg_unit_price: 6210, avg_total_price: 58.3 },
-      { district: "北碚区", count: 2340, avg_unit_price: 5890, avg_total_price: 55.2 },
-      { district: "大渡口区", count: 1980, avg_unit_price: 6750, avg_total_price: 62.8 },
-      { district: "璧山区", count: 1650, avg_unit_price: 5120, avg_total_price: 48.5 },
-      { district: "江津区", count: 1420, avg_unit_price: 4680, avg_total_price: 45.1 },
-      { district: "长寿区", count: 1280, avg_unit_price: 3850, avg_total_price: 36.8 },
-      { district: "合川区", count: 1150, avg_unit_price: 3520, avg_total_price: 33.5 },
-      { district: "永川区", count: 1020, avg_unit_price: 4210, avg_total_price: 40.2 },
-    ],
-  };
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [prediction, setPrediction] = useState<PredictionData | null>(null);
+  const [clustering, setClustering] = useState<ClusteringData | null>(null);
+  const [association, setAssociation] = useState<{ rules: any[]; total_rules: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiOnline, setApiOnline] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      // 先探活
+      try {
+        const hc = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+        if (hc.ok) setApiOnline(true);
+      } catch { /* 后端离线，用 fallback */ }
+
+      // 并行拉取
+      const fetchJSON = async (path: string) => {
+        try {
+          const res = await fetch(`${API_BASE}${path}`, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          return json.data ?? json;
+        } catch { return null; }
+      };
+
+      const [ov, pr, cl, as] = await Promise.all([
+        fetchJSON("/api/stats/overview"),
+        fetchJSON("/api/analysis/prediction"),
+        fetchJSON("/api/analysis/clustering"),
+        fetchJSON("/api/analysis/association-rules"),
+      ]);
+
+      if (cancelled) return;
+
+      setOverview(ov || FALLBACK_OVERVIEW);
+      setPrediction(pr || { models: {}, feature_importance: {} });
+      setClustering(cl || { n_clusters: 5, inertia_: 0, silhouette_score: null, cluster_stats: [] });
+      setAssociation(as || { rules: [], total_rules: 0 });
+      setLoading(false);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const ov = overview || FALLBACK_OVERVIEW;
 
   return (
     <SmoothScroll>
@@ -41,26 +85,39 @@ export default function AnalysisPage() {
             2026重庆二手房<br />数据洞察
           </h1>
           <p className="lead max-w-2xl">
-            基于 <span style={{ color: "var(--accent-pink)" }}>50,507</span> 条房源数据，
-            覆盖重庆 <span style={{ color: "var(--accent-mint)" }}>30+</span> 个区县，
+            基于{" "}
+            <span style={{ color: "var(--accent-pink)" }}>
+              {loading ? "..." : ov.total_houses.toLocaleString("zh-CN")}
+            </span>{" "}
+            条房源数据，覆盖重庆{" "}
+            <span style={{ color: "var(--accent-mint)" }}>{ov.district_count}+</span> 个区县，
             运用机器学习方法深度剖析市场结构与价格规律。
           </p>
-          <p className = "lead teamNumber">
+          <p className="lead teamNumber">
             学年设计第36小组：胡霖、王宇、解金明
-
           </p>
+          {apiOnline && (
+            <p className="text-xs mt-2" style={{ color: "var(--color-mint)" }}>
+              ● 已连接后端 API · 数据更新时间：{ov.update_time || "—"}
+            </p>
+          )}
+          {!apiOnline && !loading && (
+            <p className="text-xs mt-2" style={{ color: "#ff8a65" }}>
+              ◉ 后端未连接，展示静态演示数据
+            </p>
+          )}
         </div>
 
         {/* ── 核心数据带 ── */}
         <StatsHero stats={[
-          { value: "50,507", label: "在售房源 / 条" },
-          { value: "8,042", label: "均价 / 元/㎡" },
-          { value: "32", label: "覆盖区县 / 个" },
-          { value: "0.53", label: "预测模型 R²" },
+          { value: loading ? "..." : ov.total_houses.toLocaleString("zh-CN"), label: "在售房源 / 条" },
+          { value: loading ? "..." : ov.avg_unit_price.toLocaleString("zh-CN"), label: "均价 / 元/㎡" },
+          { value: String(ov.district_count), label: "覆盖区县 / 个" },
+          { value: loading ? "..." : "0.49", label: "预测模型 R²" },
           { value: "5", label: "市场细分 / 类" },
         ]} />
 
-        {/* ── 房价预测分析 — 交互式 Recharts ── */}
+        {/* ── 房价预测分析 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
           <hr className="hr mb-16" />
           <div className="mb-10">
@@ -69,13 +126,13 @@ export default function AnalysisPage() {
               房价预测模型
             </h2>
             <p className="lead mt-3 max-w-2xl">
-              面积（33.7%）+ 小区地段（25.5%）+ 区县均价（25.5%）共同解释房价变化的 84.7%。
+              面积 + 地段（小区/区县）解释房价变化，总价预测 R²=0.49、MAE=29.7万。
             </p>
           </div>
         </div>
-        <PredictionSection data={{ models: {}, feature_importance: {} }} />
+        {loading ? <Skeleton height={500} /> : <PredictionSection data={prediction!} />}
 
-        {/* ── KMeans 聚类 — 交互式雷达图 ── */}
+        {/* ── KMeans 聚类 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
           <hr className="hr mb-16" />
           <div className="mb-10">
@@ -84,13 +141,13 @@ export default function AnalysisPage() {
               KMeans 聚类画像
             </h2>
             <p className="lead mt-3 max-w-2xl">
-              五类市场画像：高端豪宅仅 5.6%，远郊大户 + 紧凑刚需占 64%。
+              五类市场画像：刚需（小户型28% + 紧凑11%）+ 远郊大户型29% + 改善17% + 高端15%。
             </p>
           </div>
         </div>
-        <ClusteringSection data={{ n_clusters: 5, inertia_: 0, silhouette_score: null, cluster_stats: [] }} />
+        {loading ? <Skeleton height={500} /> : <ClusteringSection data={clustering!} />}
 
-        {/* ── 关联规则 — 交互式热力图 + 表格 ── */}
+        {/* ── 关联规则 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
           <hr className="hr mb-16" />
           <div className="mb-10">
@@ -99,13 +156,13 @@ export default function AnalysisPage() {
               关联规则挖掘
             </h2>
             <p className="lead mt-3 max-w-2xl">
-              Apriori 算法发现 50 条高质量规则，最高提升度 7.33。
+              Apriori 算法发现高质量关联规则。
             </p>
           </div>
         </div>
-        <AssociationSection data={{ rules: [], total_rules: 0 }} />
+        {loading ? <Skeleton height={400} /> : <AssociationSection data={association!} />}
 
-        {/* ── 区县排名 — 交互式可点击钻取 ── */}
+        {/* ── 区县排名 ── */}
         <div className="mx-auto max-w-6xl px-6 py-4 sm:px-8 lg:px-10">
           <hr className="hr mb-16" />
           <div className="mb-10">
@@ -114,11 +171,11 @@ export default function AnalysisPage() {
               区县房源排名
             </h2>
             <p className="lead mt-3 max-w-2xl">
-              渝中区均价 ¥13,800/㎡ 领跑全市。点击柱状图查看区县详情。
+              渝中区均价领跑全市。点击柱状图查看区县详情。
             </p>
           </div>
           <div className="card-dark" style={{ padding: 32 }}>
-            <DistrictRanking districts={overview.by_district} />
+            <DistrictRanking districts={ov.by_district} />
           </div>
         </div>
 
@@ -126,12 +183,33 @@ export default function AnalysisPage() {
         <div className="mx-auto max-w-6xl px-6 pb-32 pt-8 sm:px-8 lg:px-10">
           <hr className="hr mb-10" />
           <p className="caption text-center">
-            数据来源：安居客 · 链家 | 更新时间：{overview.update_time || "2026-06-28"} |
+            数据来源：安居客 · 链家 | 更新时间：{ov.update_time || "—"} |
             分析框架：RandomForest · GradientBoosting · KMeans · Apriori
           </p>
         </div>
 
       </main>
     </SmoothScroll>
+  );
+}
+
+/** 加载骨架屏 */
+function Skeleton({ height }: { height: number }) {
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div
+        className="animate-pulse rounded-2xl"
+        style={{
+          height,
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.05)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ color: "#888888", fontSize: 14 }}>加载中...</span>
+      </div>
+    </section>
   );
 }
