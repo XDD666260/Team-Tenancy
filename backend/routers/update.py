@@ -249,6 +249,27 @@ def get_schedule_info():
             "daily_stats": list(daily_stats),
             "source_stats": list(source_stats),
             "recommended_interval": "建议每天执行1-2次增量更新（API触发或系统定时任务）",
-            "note": "可通过系统 crontab / Windows 计划任务调用 'python crawler/update.py' 实现定时增量更新",
+            "note": "APScheduler 定时调度已集成，默认每天 2:00 和 14:00 自动执行",
         }
+    )
+
+
+# ── 定时调度器控制接口 ──
+
+@router.get("/update/scheduler")
+def get_scheduler_config():
+    """查询定时调度器状态和配置"""
+    from ..scheduler import get_scheduler_status
+    sched = get_scheduler_status()
+    return APIResponse(data=sched)
+
+
+@router.post("/update/scheduler/trigger")
+def trigger_scheduler_now():
+    """手动触发一次定时调度任务（与 /api/update 独立，不冲突）"""
+    from ..scheduler import trigger_scheduled_job_now
+    result = trigger_scheduled_job_now()
+    return APIResponse(
+        code=200 if result["ok"] else 409,
+        message=result["message"],
     )

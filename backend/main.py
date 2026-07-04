@@ -63,13 +63,33 @@ def health():
     from .database import query_one
     try:
         result = query_one("SELECT COUNT(*) as cnt FROM houses")
+        from .scheduler import get_scheduler_status
+        sched = get_scheduler_status()
         return {
             "status": "ok",
             "database": "connected",
             "total_houses": result['cnt'] if result else 0,
+            "scheduler": {
+                "enabled": sched["enabled"],
+                "next_run": sched.get("next_run"),
+            },
         }
     except Exception as e:
         return {
             "status": "error",
             "database": str(e),
         }
+
+
+# ── 调度器生命周期 ──
+
+@app.on_event("startup")
+def startup():
+    from .scheduler import start_scheduler
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def shutdown():
+    from .scheduler import stop_scheduler
+    stop_scheduler()
