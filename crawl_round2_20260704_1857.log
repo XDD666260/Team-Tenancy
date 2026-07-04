@@ -1,0 +1,4 @@
+  File "D:\SWU\SWULearingPart2\SophomoreYearDesignProject\chongqing-house-analysis\crawler\anjuke_spider.py", line 465
+    global _COOKIE_PAGE_COUNT
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: name '_COOKIE_PAGE_COUNT' is assigned to before global declaration
