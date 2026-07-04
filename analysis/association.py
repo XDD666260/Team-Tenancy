@@ -272,6 +272,16 @@ def mine_rules(transactions, min_support=0.03, min_confidence=0.5, max_len=4):
 # ============================================================
 # 3. 规则格式化 + 筛选有意义规则
 # ============================================================
+def _safe_json_float(val):
+    """将 Infinity/NaN 转为 None，避免 JSON 序列化失败（MySQL JSON 拒绝 Infinity）"""
+    if val is None or pd.isna(val):
+        return None
+    v = float(val)
+    if np.isinf(v) or np.isnan(v):
+        return None
+    return v
+
+
 def format_rules(rules, top_n=50):
     """格式化规则输出，筛选有意义的规则"""
     print("\n" + "=" * 60)
@@ -308,8 +318,8 @@ def format_rules(rules, top_n=50):
             "support": float(r["support"]),
             "confidence": float(r["confidence"]),
             "lift": float(r["lift"]),
-            "leverage": float(r.get("leverage", 0)),
-            "conviction": float(r.get("conviction", 0)) if pd.notna(r.get("conviction", float("nan"))) else None,
+            "leverage": _safe_json_float(r.get("leverage", 0)),
+            "conviction": _safe_json_float(r.get("conviction")),
             "ant_types": list(ant_types),
             "con_types": list(con_types),
         })
@@ -497,9 +507,19 @@ def save_to_db(formatted_rules, charts, params):
     # 删除旧的关联规则结果（只删自己的类型，不影响其他）
     execute("DELETE FROM analysis_results WHERE analysis_type = 'association_rules'")
 
+    # MySQL JSON 字段对部分 Unicode 校验严格，先保存核心数据
+    save_data = {
+        "rules": formatted_rules,
+        "total_rules": len(formatted_rules),
+        "parameters": params,
+        "charts": charts,
+        "created_at": result.get("created_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    }
+    # 使用 ensure_ascii=True 彻底避免 MySQL JSON 字段的 Unicode 校验问题
+    json_str = json.dumps(save_data, ensure_ascii=True)
     execute(
         "INSERT INTO analysis_results (analysis_type, result_data) VALUES (%s, %s)",
-        ("association_rules", json.dumps(result, ensure_ascii=False)),
+        ("association_rules", json_str),
     )
     print(f"  [OK] {len(formatted_rules)} 条关联规则已写入数据库 (type=association_rules)")
 
