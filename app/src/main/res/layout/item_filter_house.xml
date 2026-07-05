@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardHouse"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/cardBg"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <!-- 房源图片 -->
+        <ImageView
+            android:id="@+id/ivHouseImage"
+            android:layout_width="120dp"
+            android:layout_height="90dp"
+            android:scaleType="centerCrop"
+            android:background="@color/bgLight"
+            android:contentDescription="房源图片" />
+
+        <!-- 房源信息 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+
+            <!-- 标题 -->
+            <TextView
+                android:id="@+id/tvHouseTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <!-- 小区名 -->
+            <TextView
+                android:id="@+id/tvCommunity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+
+            <!-- 户型 + 面积 -->
+            <TextView
+                android:id="@+id/tvLayoutArea"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/textHint"
+                android:textSize="12sp" />
+
+            <!-- 标签行 -->
+            <LinearLayout
+                android:id="@+id/tagContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvTagDecoration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="6dp"
+                    android:textSize="10sp"
+                    android:textColor="@color/colorPrimary"
+                    android:background="@drawable/tag_bg"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvTagFloor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="4dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="6dp"
+                    android:textSize="10sp"
+                    android:textColor="@color/nearbyTag"
+                    android:background="@drawable/tag_bg"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvTagSource"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="4dp"
+                    android:gravity="center"
+                    android:paddingHorizontal="6dp"
+                    android:textSize="10sp"
+                    android:textColor="@color/textSecondary"
+                    android:background="@drawable/tag_bg"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 价格 -->
+            <TextView
+                android:id="@+id/tvHousePrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/priceColor"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -28,5 +28,6 @@ data class HouseItem(
     @SerializedName("lat") val lat: Double?,
     @SerializedName("source") val source: String?,
     @SerializedName("has_coords") val hasCoords: Boolean?,
-    @SerializedName("has_images") val hasImages: Boolean?
+    @SerializedName("has_images") val hasImages: Boolean?,
+    @SerializedName("image_urls") val imageUrls: List<String>? = null
 )

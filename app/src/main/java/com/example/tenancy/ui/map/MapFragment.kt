@@ -143,9 +143,11 @@ class MapFragment : Fragment() {
                 viewModel.uiState.collect { state ->
                     binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
 
-                    val statsText = getString(
-                        R.string.map_stats_format, state.totalCount, state.coordinateCount
-                    )
+                    val statsText = if (state.isLoading) {
+                        getString(R.string.map_stats_loading)
+                    } else {
+                        getString(R.string.map_stats_format, state.totalCount, state.coordinateCount)
+                    }
                     binding.tvStats.text = statsText
                     Log.d(TAG, "Stats: total=${state.totalCount}, coords=${state.coordinateCount}, pointsJsonLen=${state.pointsJson.length}")
 
@@ -209,15 +211,14 @@ class MapFragment : Fragment() {
         val pointsB64 = encodeB64(pointsJson)
         val districtsB64 = encodeB64(districtsJson)
 
-        if (isWebViewReady) {
+                if (isWebViewReady) {
             wv.evaluateJavascript("loadDistrictsB64('$districtsB64')", null)
+            wv.evaluateJavascript("loadPointsB64('$pointsB64')", null)
 
             if (!filter.isNullOrBlank()) {
                 val escaped = filter.replace("'", "\\'")
                 wv.evaluateJavascript("filterByDistrict('$escaped')", null)
             }
-
-            wv.evaluateJavascript("loadPointsB64('$pointsB64')", null)
         } else {
             pendingPointsB64 = pointsB64
             pendingDistrictsB64 = districtsB64

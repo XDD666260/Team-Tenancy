@@ -1,266 +1,230 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>房源地图</title>
     <style>
-        * { margin: 0; padding: 0; }
-        html, body, #container { width: 100%; height: 100%; }
-
-        #filterPanel {
-            position: absolute; top: 10px; left: 10px; right: 10px; z-index: 999;
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        }
-        #districtSelect {
-            flex: 1; min-width: 100px; height: 36px; border: none; border-radius: 8px;
-            padding: 0 10px; font-size: 14px; background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15); color: #333; outline: none;
-            -webkit-appearance: none;
-        }
-        .toggle-btn {
-            height: 36px; padding: 0 16px; border: none; border-radius: 8px;
-            font-size: 13px; font-weight: 500; background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15); color: #666;
-            cursor: pointer; white-space: nowrap;
-        }
-        .toggle-btn.active {
-            background: #2196F3; color: #fff;
-            box-shadow: 0 2px 12px rgba(33,150,243,0.4);
-        }
-
-        #legend {
-            position: absolute; bottom: 36px; right: 12px; z-index: 999;
-            background: rgba(255,255,255,0.94); border-radius: 10px;
-            padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-            font-size: 11px; color: #555; display: none;
-        }
-        #legend .gradient-bar {
-            width: 140px; height: 12px; border-radius: 6px;
-            background: linear-gradient(to right, #2196F3, #4CAF50, #FFEB3B, #FF9800, #F44336);
-            margin-bottom: 4px;
-        }
-        #legend .labels { display: flex; justify-content: space-between; }
-        #legend .labels span { width: 32px; text-align: center; }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #container { width: 100%; height: 100%; }
         #infoBox {
-            position: absolute; top: 62px; left: 10px; z-index: 998;
-            background: rgba(0,0,0,0.72); color: #0f0; border-radius: 6px;
-            padding: 4px 10px; font-size: 11px; font-family: monospace;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95); padding: 20px 28px; border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 1000;
+            font-size: 14px; color: #333; text-align: center;
         }
-
+        #infoBox .spinner {
+            display: inline-block; width: 22px; height: 22px;
+            border: 3px solid #e0e0e0; border-top-color: #2196F3;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin-right: 10px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .controls {
+            position: absolute; top: 16px; right: 16px; z-index: 999;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .controls button {
+            width: 40px; height: 40px; border: none; border-radius: 8px;
+            background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            cursor: pointer; font-size: 18px; line-height: 40px; text-align: center;
+            transition: background 0.2s; color: #555;
+        }
+        .controls button:active { transform: scale(0.95); }
+        .controls button.active { background: #2196F3; color: #fff; }
         #countBadge {
-            position: absolute; top: 10px; right: 10px; z-index: 999;
-            background: rgba(0,0,0,0.72); color: #fff; border-radius: 10px;
-            padding: 2px 10px; font-size: 11px; display: none;
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.75); color: #fff; padding: 6px 16px;
+            border-radius: 20px; font-size: 13px; z-index: 999; display: none;
+            white-space: nowrap; pointer-events: none;
         }
+        #legend {
+            position: absolute; bottom: 70px; left: 16px; z-index: 999;
+            background: rgba(255,255,255,0.93); padding: 10px 14px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-size: 11px; color: #666;
+            display: none; line-height: 1.8;
+        }
+        #legend .bar { display: flex; gap: 0; margin-top: 4px; border-radius: 4px; overflow: hidden; }
+        #legend .bar span { width: 32px; height: 8px; }
     </style>
 </head>
 <body>
-    <div id="container"></div>
-    <div id="infoBox">INIT...</div>
-    <div id="countBadge"></div>
 
-    <div id="filterPanel">
-        <select id="districtSelect">
-            <option value="">全部区县</option>
-        </select>
-        <button id="btnHeatmap" class="toggle-btn active" onclick="toggleHeatmap()">热力</button>
-        <button id="btnMarker" class="toggle-btn active" onclick="toggleMarker()">标注</button>
+    <div id="container"></div>
+    <div id="debugInfo" style="position:absolute;top:60px;left:8px;z-index:2000;background:rgba(0,0,0,0.85);color:#0f0;font-size:11px;font-family:monospace;padding:8px 12px;border-radius:6px;max-height:300px;overflow-y:auto;max-width:280px;display:none;line-height:1.6;pointer-events:none;"></div>
+
+    <div id="infoBox">
+        <span class="spinner"></span> 加载地图中...
     </div>
+
+<!--    <div class="controls">-->
+<!--        <button id="btnHeatmap" class="active" onclick="toggleHeatmap()" title="热力图">🔥</button>-->
+<!--        <button id="btnMarker" class="active" onclick="toggleMarker()" title="标注">📍</button>-->
+<!--    </div>-->
 
     <div id="legend">
-        <div class="gradient-bar"></div>
-        <div class="labels"><span>低</span><span>中</span><span>高</span></div>
+        低 <div class="bar">
+            <span style="background:#2196F3;"></span>
+            <span style="background:#4CAF50;"></span>
+            <span style="background:#FFEB3B;"></span>
+            <span style="background:#FF9800;"></span>
+            <span style="background:#F44336;"></span>
+        </div> 高
     </div>
 
-    <script type="text/javascript">
-        function log(msg) {
-            console.log('[MapJS] ' + msg);
+
+
+<script>
+    // ======== 全局错误捕获 ========
+    window.onerror = function(msg, url, line, col, err) {
+        var el = document.getElementById("debugInfo");
+        if (el) el.innerHTML += '<div style="color:#f44;">错误: ' + msg + ' (行' + line + ')</div>';
+        console.error("[Map][FATAL]", msg, url, line, col, err);
+    };
+
+    // ======== 工具函数 ========
+    function log(msg) { console.log('[Map] ' + msg); }
+
+    function b64decode(b64) {
+        try {
+            var decoded = decodeURIComponent(Array.prototype.map.call(
+                atob(b64), function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }
+            ).join(''));
+            return decoded;
+        } catch (e) {
+            log('b64decode fallback: ' + e.message);
+            try { return decodeURIComponent(escape(atob(b64))); } catch (e2) { log('b64decode failed: ' + e2.message); return ''; }
+        }
+    }
+
+    // ======== 异步加载 AMap SDK ========
+    function loadAMapSDK() {
+        var s = document.createElement('script');
+        s.src = 'https://webapi.amap.com/maps?v=2.0&key=88060df7838717adca9ea8bb6a9f39f2&plugin=AMap.MarkerClusterer,AMap.HeatmapLayer';
+        s.onload = function() {
             var box = document.getElementById('infoBox');
-            if (box) box.textContent = msg;
+            if (box) box.innerHTML = '地图初始化中...';
+            log('SDK OK, init map...');
+            initMap();
+        };
+        s.onerror = function() {
+            log('ERROR: AMap SDK load failed - check network');
+            var box = document.getElementById('infoBox');
+            if (box) box.innerHTML = '地图加载失败 - 请检查网络连接';
+        };
+        document.head.appendChild(s);
+    }
+
+    // ======== SDK 超时检测 (10秒) ========
+    setTimeout(function() {
+        var box = document.getElementById('infoBox');
+        if (box && typeof AMap === 'undefined') {
+            box.innerHTML = '地图加载失败 - 网络超时，请检查网络连接';
         }
+    }, 10000);
 
-        function b64decode(b64) {
-            var binary = atob(b64);
-            var bytes = new Uint8Array(binary.length);
-            for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            return new TextDecoder('utf-8').decode(bytes);
+    // ======== infoBox点击切换调试面板 ========
+    document.addEventListener("DOMContentLoaded", function() {
+        var box = document.getElementById("infoBox");
+        if (box) {
+            box.addEventListener("click", function() {
+                var dbg = document.getElementById("debugInfo");
+                if (dbg) dbg.style.display = dbg.style.display === "none" ? "block" : "none";
+            });
         }
+        loadAMapSDK();
+    });
 
-        log('LOADING SDK...');
-    </script>
-    <!-- 不传 securityJsCode, 直接用 key -->
-    <script src="https://webapi.amap.com/maps?v=2.0&key=88060df7838717adca9ea8bb6a9f39f2"></script>
+    // ======== 地图初始化 (SDK加载后调用) ========
+    var map;
+    var allData = [];
+    var markersVisible = true;
+    var _mapMarkers = [];
+    var _currentDistrict = '';
 
-    <script>
-        log('SDK OK, init map...');
-
-        var map;
-        var allData = [];
-        var heatmapVisible = true;
-        var markersVisible = true;
-        var currentZoom = 12;
-
+    function initMap() {
         map = new AMap.Map('container', {
             zoom: 12,
-            center: [121.4737, 31.2304],
+            center: [106.5516, 29.5630],
             mapStyle: 'amap://styles/light',
             resizeEnable: true
         });
 
         map.on('complete', function() {
-            log('MAP READY');
-            if (allData.length > 0) renderAll();
+            if (allData.length > 0) {
+                renderMarkers();
+            }
+            window._mapReady = true;
             setTimeout(function() {
                 var box = document.getElementById('infoBox');
                 if (box) box.style.display = 'none';
-            }, 3000);
+            }, 1500);
         });
+    }
 
-        map.on('zoomend', function() {
-            currentZoom = map.getZoom();
-            if (markersVisible) renderMarkers();
-        });
-        map.on('moveend', function() {
-            if (markersVisible && currentZoom >= 16) renderMarkers();
-        });
+    function loadPointsB64(b64) {
+        try {
+            var json = b64decode(b64);
+            allData = JSON.parse(json);
+            if (!Array.isArray(allData)) allData = [];
+        } catch(e) {
+            allData = [];
+        }
+        if (typeof AMap !== 'undefined' && map && window._mapReady) {
+            renderMarkers();
+        }
+    }
 
-        // ======== 自定义热力 (纯 Circle 叠加) ========
-        function drawCustomHeatmap(data) {
-            clearCustomHeatmap();
-            if (!data || data.length === 0) return;
-            if (!heatmapVisible) return;
+    function loadDistrictsB64(b64) {
+        // 区县列表由 Android 端 Chip 处理，此处仅作存储备用
+        try {
+            var districts = JSON.parse(b64decode(b64));
+            if (!Array.isArray(districts)) districts = [];
+        } catch(e) {
+            log('DISTRICT ERR: ' + e);
+        }
+    }
 
-            var groupRadius = 100000 / Math.pow(2, currentZoom);
-            var grid = {};
-            data.forEach(function(p) {
-                var gx = Math.round(p.lng * 100000 / groupRadius) * groupRadius / 100000;
-                var gy = Math.round(p.lat * 100000 / groupRadius) * groupRadius / 100000;
-                var key = gx.toFixed(5) + ',' + gy.toFixed(5);
-                grid[key] = (grid[key] || 0) + 1;
-            });
+    function filterByDistrict(district) {
+        _currentDistrict = district || '';
+        if (typeof AMap !== 'undefined' && map && window._mapReady) {
+            renderMarkers();
+        }
+    }
 
-            var counts = Object.values(grid);
-            if (counts.length === 0) return;
-            var maxCount = Math.max.apply(null, counts);
-            if (maxCount === 0) return;
+    function getCurrentFiltered() {
+        if (_currentDistrict) {
+            return allData.filter(function(p) { return p.district === _currentDistrict; });
+        }
+        return allData;
+    }
 
-            var circles = [];
-            Object.keys(grid).forEach(function(key) {
-                var parts = key.split(',');
-                var lng = parseFloat(parts[0]);
-                var lat = parseFloat(parts[1]);
-                var count = grid[key];
-                var ratio = Math.min(count / Math.max(maxCount * 0.3, 1), 1);
-                var color = heatColor(ratio);
-                var opacity = 0.10 + ratio * 0.45;
-                var radius = 500 + ratio * 800;
+    function getPriceColor(price) {
+        if (!price || price <= 0) return '#999';
+        if (price < 10000) return '#4CAF50';
+        if (price < 20000) return '#8BC34A';
+        if (price < 30000) return '#FFEB3B';
+        if (price < 50000) return '#FF9800';
+        return '#F44336';
+    }
 
-                var circle = new AMap.Circle({
-                    center: [lng, lat],
-                    radius: radius,
-                    fillColor: color,
-                    fillOpacity: opacity,
-                    strokeWeight: 0,
-                    zIndex: 10
-                });
-                circles.push(circle);
-            });
-
-            if (circles.length > 0) {
-                map.add(circles);
-                window._customHeatCircles = circles;
-                log('HEAT: ' + circles.length + ' circles');
-            }
+    function renderMarkers() {
+        if (_mapMarkers.length > 0) {
+            map.remove(_mapMarkers);
+            _mapMarkers = [];
+        }
+        var filtered = getCurrentFiltered();
+        if (!markersVisible || filtered.length === 0) {
+            document.getElementById('countBadge').style.display = 'none';
+            return;
         }
 
-        function clearCustomHeatmap() {
-            if (window._customHeatCircles && window._customHeatCircles.length > 0) {
-                map.remove(window._customHeatCircles);
-                window._customHeatCircles = null;
-            }
-        }
-
-        function heatColor(ratio) {
-            if (ratio < 0.2) return '#2196F3';
-            if (ratio < 0.4) return '#4CAF50';
-            if (ratio < 0.6) return '#FFEB3B';
-            if (ratio < 0.8) return '#FF9800';
-            return '#F44336';
-        }
-
-        // ======== 标注渲染 ========
-        function renderMarkers() {
-            if (window._currentMarkers && window._currentMarkers.length > 0) {
-                map.remove(window._currentMarkers);
-                window._currentMarkers = null;
-            }
-
-            var sel = document.getElementById('districtSelect');
-            var district = sel ? sel.value : '';
-            var filtered = allData;
-            if (district) {
-                filtered = allData.filter(function(p) { return p.district === district; });
-            }
-
-            var badge = document.getElementById('countBadge');
-            badge.style.display = 'block';
-            badge.textContent = filtered.length + ' 个房源';
-
-            if (filtered.length === 0) return;
-            if (!markersVisible) return;
-
-            if (currentZoom >= 16) {
-                var dots = filtered.map(function(p) { return createDotMarker(p); });
-                map.add(dots);
-                window._currentMarkers = dots;
-                log('DOTS: ' + dots.length);
-            } else {
-                var groupRadius = 100000 / Math.pow(2, currentZoom);
-                var grid = {};
-                var gridSample = {};
-                filtered.forEach(function(p) {
-                    var gx = Math.round(p.lng * 100000 / groupRadius) * groupRadius / 100000;
-                    var gy = Math.round(p.lat * 100000 / groupRadius) * groupRadius / 100000;
-                    var key = gx.toFixed(5) + ',' + gy.toFixed(5);
-                    if (!grid[key]) { grid[key] = { count: 0, lngSum: 0, latSum: 0 }; }
-                    grid[key].count++;
-                    grid[key].lngSum += p.lng;
-                    grid[key].latSum += p.lat;
-                    if (!gridSample[key]) gridSample[key] = p;
-                });
-
-                var markers = [];
-                Object.keys(grid).forEach(function(key) {
-                    var g = grid[key];
-                    var clng = g.lngSum / g.count;
-                    var clat = g.latSum / g.count;
-                    if (g.count === 1) {
-                        markers.push(createDotMarker(gridSample[key]));
-                    } else {
-                        var size = Math.min(28 + g.count * 3, 55);
-                        markers.push(new AMap.Marker({
-                            position: [clng, clat],
-                            content: '<div style="background:#2196F3;color:#fff;width:' + size + 'px;height:' + size + 'px;' +
-                                     'border-radius:50%;display:flex;align-items:center;justify-content:center;' +
-                                     'font-size:' + Math.min(12+g.count,18) + 'px;font-weight:bold;' +
-                                     'box-shadow:0 2px 8px rgba(0,0,0,0.35);line-height:1;">' + g.count + '</div>',
-                            offset: new AMap.Pixel(-size/2, -size/2),
-                            zIndex: 100 + g.count
-                        }));
-                    }
-                });
-                if (markers.length > 0) {
-                    map.add(markers);
-                    window._currentMarkers = markers;
-                    log('CLUSTER: ' + markers.length + ' z=' + currentZoom);
-                }
-            }
-        }
-
-        function createDotMarker(p) {
-            var color = getPriceColor(p.unitPrice);
+        var startTime = Date.now();
+        _mapMarkers = filtered.map(function(p, idx) {
+            var color = getPriceColor(p.unit_price);
             var marker = new AMap.Marker({
                 position: [p.lng, p.lat],
                 offset: new AMap.Pixel(-7, -7),
@@ -272,8 +236,8 @@
             marker.on('click', function(e) {
                 var d = e.target.getExtData();
                 if (!d) return;
-                var ps = d.unitPrice ? (d.unitPrice >= 10000 ? (d.unitPrice/10000).toFixed(1)+'万' : d.unitPrice+'元') : '--';
-                var tp = d.totalPrice ? (d.totalPrice >= 10000 ? (d.totalPrice/10000).toFixed(1)+'万' : d.totalPrice+'万') : '--';
+                var ps = d.unit_price ? (d.unit_price >= 10000 ? (d.unit_price/10000).toFixed(1)+'万' : d.unit_price+'元') : '--';
+                var tp = d.total_price ? (d.total_price >= 10000 ? (d.total_price/10000).toFixed(1)+'万' : d.total_price+'万') : '--';
                 var info = new AMap.InfoWindow({
                     content: '<div style="padding:8px 14px;font-size:13px;line-height:1.7;min-width:140px;">' +
                              '<b style="font-size:14px;">' + (d.community || d.title || '--') + '</b><br/>' +
@@ -284,94 +248,31 @@
                              '</div>',
                     offset: new AMap.Pixel(0, -18)
                 });
-                info.open(map, [p.lng, p.lat]);
+                info.open(map, [d.lng, d.lat]);
             });
             return marker;
-        }
+        });
+        map.add(_mapMarkers);
+        var elapsed = Date.now() - startTime;
+        document.getElementById('countBadge').textContent = filtered.length + ' 个房源';
+        document.getElementById('countBadge').style.display = 'block';
+    }
 
-        function getPriceColor(price) {
-            if (!price || price <= 0) return '#999';
-            if (price < 10000) return '#4CAF50';
-            if (price < 20000) return '#8BC34A';
-            if (price < 30000) return '#FFEB3B';
-            if (price < 50000) return '#FF9800';
-            return '#F44336';
-        }
-
-        // ======== 对外接口 ========
-        function loadPointsB64(b64) {
-            log('loadPointsB64: ' + b64.length);
-            try {
-                var json = b64decode(b64);
-                allData = JSON.parse(json);
-                if (!Array.isArray(allData)) allData = [];
-                log('PARSED: ' + allData.length);
-            } catch(e) {
-                log('ERR: ' + e);
-                allData = [];
-            }
-            renderAll();
-        }
-
-        function loadDistrictsB64(b64) {
-            try {
-                var districts = JSON.parse(b64decode(b64));
-                if (!Array.isArray(districts)) districts = [];
-                var sel = document.getElementById('districtSelect');
-                sel.innerHTML = '<option value="">全部区县</option>';
-                districts.forEach(function(d) {
-                    var opt = document.createElement('option');
-                    opt.value = d; opt.textContent = d;
-                    sel.appendChild(opt);
-                });
-            } catch(e) {
-                log('DISTRICT ERR: ' + e);
-            }
-        }
-
-        function filterByDistrict(district) {
-            var sel = document.getElementById('districtSelect');
-            if (sel) sel.value = district || '';
-            renderAll();
-        }
-
-        function renderAll() {
-            var sel = document.getElementById('districtSelect');
-            var district = sel ? sel.value : '';
-            var filtered = allData;
-            if (district) {
-                filtered = allData.filter(function(p) { return p.district === district; });
-            }
-            log('RENDER: "' + district + '" ' + filtered.length + ' pts');
-
-            if (heatmapVisible && filtered.length > 0) {
-                drawCustomHeatmap(filtered);
-            } else {
-                clearCustomHeatmap();
-            }
-
+    function toggleMarker() {
+        markersVisible = !markersVisible;
+        document.getElementById('btnMarker').classList.toggle('active', markersVisible);
+        if (markersVisible) {
             renderMarkers();
-            document.getElementById('legend').style.display = heatmapVisible ? 'block' : 'none';
+        } else {
+            if (_mapMarkers.length > 0) { map.remove(_mapMarkers); _mapMarkers = []; }
+            document.getElementById('countBadge').style.display = 'none';
         }
+    }
 
-        function toggleHeatmap() {
-            heatmapVisible = !heatmapVisible;
-            document.getElementById('btnHeatmap').classList.toggle('active', heatmapVisible);
-            document.getElementById('legend').style.display = heatmapVisible ? 'block' : 'none';
-            renderAll();
-        }
+    function toggleHeatmap() {
+        // heatmap disabled - not compatible with AMap v2.0
+    }
+</script>
 
-        function toggleMarker() {
-            markersVisible = !markersVisible;
-            document.getElementById('btnMarker').classList.toggle('active', markersVisible);
-            if (!markersVisible) {
-                if (window._currentMarkers) { map.remove(window._currentMarkers); window._currentMarkers = null; }
-                document.getElementById('countBadge').style.display = 'none';
-            }
-            renderAll();
-        }
-
-        document.getElementById('districtSelect').addEventListener('change', renderAll);
-    </script>
 </body>
 </html>
