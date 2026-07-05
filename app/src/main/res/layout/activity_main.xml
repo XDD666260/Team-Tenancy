@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="@android:color/white">
+        android:background="@drawable/round_border_shape">
 
         <!-- Toolbar -->
         <com.google.android.material.appbar.MaterialToolbar
@@ -47,9 +47,10 @@
     <!-- 侧边栏 -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
-        android:layout_width="280dp"
+        android:layout_width="260dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
+        android:paddingTop="40dp"
         android:elevation="0dp"
         android:background="@drawable/bg_nav_drawer"
         app:headerLayout="@layout/drawer_header"

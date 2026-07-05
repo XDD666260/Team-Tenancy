@@ -54,6 +54,7 @@ dependencies {
     // ViewModel + LiveData
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.livedata)
+    implementation(libs.lifecycle.runtime)
 
     // Navigation
     implementation(libs.navigation.fragment)
@@ -72,9 +73,11 @@ dependencies {
 
     // Google Play Services - Location
     implementation(libs.playservices.location)
+    implementation(libs.glide)
 
     // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
+

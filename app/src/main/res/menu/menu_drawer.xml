@@ -5,7 +5,7 @@
         <item
             android:id="@+id/nav_home"
             android:icon="@drawable/ic_house"
-            android:title="@string/nav_home" />
+            android:title="主页总览" />
 
         <item
             android:id="@+id/nav_map"
@@ -14,12 +14,12 @@
 
         <item
             android:id="@+id/nav_chart"
-            android:icon="@drawable/ic_profile"
+            android:icon="@drawable/icon_analyse"
             android:title="@string/nav_chart" />
 
         <item
             android:id="@+id/nav_filter"
-            android:icon="@drawable/ic_properties"
+            android:icon="@drawable/icon_filter"
             android:title="@string/nav_filter" />
     </group>
 

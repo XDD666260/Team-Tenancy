@@ -1,9 +1,11 @@
-package com.example.tenancy.ui.map
+﻿package com.example.tenancy.ui.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tenancy.data.model.HouseItem
 import com.example.tenancy.data.remote.NetworkResult
 import com.example.tenancy.data.repository.HouseRepository
+import com.example.tenancy.data.repository.MapLoadProgress
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,14 +39,19 @@ data class MapUiState(
 
 class MapViewModel : ViewModel() {
 
+    companion object {
+        private const val MAX_MAP_POINTS = 500
+    }
+
     private val repository = HouseRepository()
     private val gson = Gson()
 
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
 
-    private var allPoints: List<PointData> = emptyList()
-    private var allDistricts: List<String> = emptyList()
+    private var accumulatedItems: List<HouseItem> = emptyList()
+    private var accumulatedDistricts: List<String> = emptyList()
+    private var accumulatedSelectedDistrict: String? = null
 
     init {
         loadHouses()
@@ -54,67 +61,79 @@ class MapViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            // 使用专门的地图接口，不传任何过滤参数
-            val result = repository.getAllHousesForMap()
-            when (result) {
-                is NetworkResult.Success -> {
-                    val houses = result.data
+            repository.getAllHousesForMapFlow().collect { progress ->
+                accumulatedItems = progress.items
 
-                    allDistricts = houses.mapNotNull { it.district }
+                if (accumulatedDistricts.isEmpty()) {
+                    accumulatedDistricts = progress.items.mapNotNull { it.district }
                         .filter { it.isNotBlank() }
                         .distinct()
                         .sorted()
-
-                    allPoints = houses
-                        .filter { (it.lng ?: 0.0) > 0.0 && (it.lat ?: 0.0) > 0.0 }
-                        .map { h ->
-                            PointData(
-                                lng = h.lng!!,
-                                lat = h.lat!!,
-                                title = h.title,
-                                community = h.community,
-                                district = h.district,
-                                totalPrice = h.totalPrice,
-                                unitPrice = h.unitPrice,
-                                area = h.area,
-                                layout = h.layout
-                            )
-                        }
-
-                    val json = gson.toJson(allPoints)
-                    val districtsJson = gson.toJson(allDistricts)
-
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        pointsJson = gson.toJson(allPoints),
-                        districtsJson = gson.toJson(allDistricts),
-                        districts = allDistricts,
-                        totalCount = houses.size,
-                        coordinateCount = allPoints.size
-                    )
                 }
-                is NetworkResult.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message ?: "HTTP ${result.code}"
-                    )
-                }
-                else -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                }
+
+                val points = progress.items
+                    .filter { it.lng != null && it.lat != null && it.lng!!.isFinite() && it.lat!!.isFinite() }
+                    .map { h ->
+                        PointData(
+                            lng = h.lng!!,
+                            lat = h.lat!!,
+                            title = h.title,
+                            community = h.community,
+                            district = h.district,
+                            totalPrice = h.totalPrice,
+                            unitPrice = h.unitPrice,
+                            area = h.area,
+                            layout = h.layout
+                        )
+                    }
+
+                val displayPoints = (if (accumulatedSelectedDistrict.isNullOrBlank()) {
+                    points
+                } else {
+                    points.filter { it.district == accumulatedSelectedDistrict }
+                }).take(MAX_MAP_POINTS)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = !progress.isCompleted,
+                    pointsJson = gson.toJson(displayPoints),
+                    districtsJson = gson.toJson(accumulatedDistricts),
+                    districts = accumulatedDistricts,
+                    selectedDistrict = accumulatedSelectedDistrict,
+                    totalCount = minOf(displayPoints.size, MAX_MAP_POINTS),
+                    coordinateCount = minOf(displayPoints.size, MAX_MAP_POINTS)
+                )
             }
         }
     }
 
     fun filterByDistrict(district: String?) {
+        accumulatedSelectedDistrict = district
         val filtered = if (district.isNullOrBlank()) {
-            allPoints
+            accumulatedItems
         } else {
-            allPoints.filter { it.district == district }
+            accumulatedItems.filter { it.district == district }
         }
+        val points = filtered
+            .filter { it.lng != null && it.lat != null && it.lng!!.isFinite() && it.lat!!.isFinite() }
+            .map { h ->
+                PointData(
+                    lng = h.lng!!,
+                    lat = h.lat!!,
+                    title = h.title,
+                    community = h.community,
+                    district = h.district,
+                    totalPrice = h.totalPrice,
+                    unitPrice = h.unitPrice,
+                    area = h.area,
+                    layout = h.layout
+                )
+            }
+            .take(MAX_MAP_POINTS)
         _uiState.value = _uiState.value.copy(
             selectedDistrict = district,
-            pointsJson = gson.toJson(filtered)
+            pointsJson = gson.toJson(points),
+            totalCount = minOf(points.size, MAX_MAP_POINTS),
+            coordinateCount = minOf(points.size, MAX_MAP_POINTS)
         )
     }
 }
